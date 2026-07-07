@@ -1,47 +1,24 @@
-import MetricCard from "@/components/admin/MetricCard";
+import DashboardStats from "@/components/admin/DashboardStats";
 import { properties } from "@/data/admin-sample";
 import LeadKanban from "@/components/admin/LeadKanban";
-import {
-  Building2,
-  Users,
-  TrendingUp,
-  DollarSign
-} from "lucide-react"
+import PropertyList from "@/components/admin/PropertyList";
 
 export default function AdminPage() {
   return (
-    <section>
-      <div>
+    <div className="space-y-10">
+      <section id="dashboard" className="scroll-mt-24">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard 
-            title="Propiedades activas" 
-            value={184} 
-            delta="+12" 
-            Icon={Building2}/>
-          <MetricCard 
-            title="Consultas activas" 
-            value={28} 
-            delta="+4" 
-            Icon={Users}/>
-          <MetricCard 
-            title="Cierres del mes"
-            value={9} 
-            delta="-2"
-            Icon={TrendingUp} />
-          <MetricCard 
-            title="Ingresos del mes"
-            value="$412K"
-            delta="+18%"
-            Icon={DollarSign} />
-        </div>
+        <DashboardStats />
+      </section>
 
-        <div className="mt-8">
+
+      <section id="leads" className="scroll-mt-24">
+        <div>
           <h2 className="text-lg font-semibold text-slate-900">Embudos de venta</h2>
           <p className="mt-1 text-sm text-slate-500">Arrastrar para cambiar de estado</p>
 
@@ -51,7 +28,29 @@ export default function AdminPage() {
             <LeadKanban />
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+      
+      <section id="properties" className="scroll-mt-24">
+        <PropertyList properties={properties} />
+      </section>
+
+      {/* <section id="agenda" className="scroll-mt-24">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Agenda de visitas</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Calendario operativo y visitas programadas. Este módulo todavía está pendiente de implementación.
+          </p>
+        </div>
+      </section>
+
+      <section id="settings" className="scroll-mt-24">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Configuración</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Perfil de empresa, branding e integraciones SaaS. Este módulo todavía está pendiente de implementación.
+          </p>
+        </div>
+      </section> */}
+    </div>
   );
 }

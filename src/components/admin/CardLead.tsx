@@ -75,8 +75,8 @@ export default function CardLead({ id, name, phone, email, origin, property, las
           <div className="mt-2 text-sm text-slate-500">{property ? `${property.title ?? ""} · ${property.bedrooms ?? ""}BR` : "Sin propiedad"}</div>
 
           <div className="mt-3 items-center flex gap-3">
-            <div className="ml-auto flex items-center gap-2">
-                <div className="text-lg font-semibold text-slate-900">{formatPrice(property?.price, property?.currency)}</div>
+            <div className="flex items-center gap-2">
+                <div className="text-[15px] font-semibold text-slate-900">{formatPrice(property?.price, property?.currency)}</div>
               <button
                 onClick={() => setShowPhone((s) => !s)}
                 className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-2 py-1 text-xs text-slate-700"

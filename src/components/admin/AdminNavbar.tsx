@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { User, Bell, Plus, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { User, Bell, Plus, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import DropdownMenu from "@/components/ui/dropdown-menu";
 import { Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { SidebarTrigger } from "../ui/sidebar";
 
 import {
@@ -27,6 +28,7 @@ export default function AdminNavbar({
   userName = "María Rossi",
   className,
 }: Props) {
+  const router = useRouter();
   const [bellOpen, setBellOpen] = useState(false);
 
   return (
@@ -56,7 +58,21 @@ export default function AdminNavbar({
           Exportar
         </Button>
 
-        <Button className="inline-flex items-center gap-2 bg-blue-600 text-white" size="sm">
+        <Button
+          variant="outline"
+          size="sm"
+          className="inline-flex items-center gap-2"
+          onClick={() => router.push("/admin/properties/new")}
+        >
+          <Plus className="h-4 w-4" />
+          Nueva propiedad
+        </Button>
+
+        <Button
+          className="inline-flex items-center gap-2 bg-blue-600 text-white"
+          size="sm"
+          onClick={() => router.push("/admin/leads/new")}
+        >
           <Plus className="h-4 w-4" />
           Nuevo lead
         </Button>

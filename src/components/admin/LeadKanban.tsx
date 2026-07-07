@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
 import { Phone, Mail, PhoneOutgoing } from "lucide-react";
 import CardLead from "@/components/admin/CardLead";
+import { loadLeadList, saveLeadList } from "@/lib/admin-storage";
 
 type Stage = "new" | "contacted" | "visiting" | "negotiation" | "closing";
 
@@ -57,7 +58,18 @@ function formatPrice(value: number, currency: string) {
 }
 
 export default function LeadKanban({ companyId = "c1" }: { companyId?: string }) {
-  const [leads, setLeads] = useState(() => sampleLeads.filter(l => l.companyId === companyId));
+  const [leads, setLeads] = useState(() => sampleLeads.filter((l) => l.companyId === companyId));
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setLeads(loadLeadList(sampleLeads, companyId));
+    setHydrated(true);
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    saveLeadList(leads);
+  }, [hydrated, leads]);
 
   function onDragStart(e: React.DragEvent, leadId: string) {
     e.dataTransfer.setData("text/plain", leadId);
@@ -68,7 +80,7 @@ export default function LeadKanban({ companyId = "c1" }: { companyId?: string })
     e.preventDefault();
     const id = e.dataTransfer.getData("text/plain");
     if (!id) return;
-    setLeads(prev => prev.map(l => (l.id === id ? { ...l, stage } : l)));
+    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, stage } : l)));
   }
 
   function onDragOver(e: React.DragEvent) {

@@ -1,57 +1,92 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Building2, Users, Settings, Command } from "lucide-react";
-import { useState } from "react";
+import { Home, Building2, Users, CalendarDays, Settings, Command, ChevronRight, Plus } from "lucide-react";
 
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
   label: string;
   href: string;
   Icon: ComponentType<any>;
+  description?: string;
 };
 
 const items: NavItem[] = [
-  { label: "Dashboard", href: "/admin", Icon: Home },
-  { label: "Propiedades", href: "/admin/properties", Icon: Building2 },
-  { label: "Leads", href: "/admin/leads", Icon: Users },
-  { label: "Configuración", href: "/admin/settings", Icon: Settings },
+  { label: "Dashboard", href: "/admin#dashboard", Icon: Home, description: "Resumen general" },
+  { label: "Leads", href: "/admin#leads", Icon: Users, description: "Pipeline comercial" },
+  { label: "Propiedades", href: "/admin#properties", Icon: Building2, description: "Inventario y filtros" },
+  { label: "Agenda", href: "/admin#agenda", Icon: CalendarDays, description: "Visitas programadas" },
+  { label: "Configuración", href: "/admin#settings", Icon: Settings, description: "Ajustes de la inmobiliaria" },
 ];
 
 
 export default function AppSidebar() {
   const pathname = usePathname() || "/";
+  const [activeHash, setActiveHash] = useState("dashboard");
+
+  useEffect(() => {
+    const updateHash = () => setActiveHash(window.location.hash.replace(/^#/, "") || "dashboard");
+
+    updateHash();
+    window.addEventListener("hashchange", updateHash);
+    return () => window.removeEventListener("hashchange", updateHash);
+  }, []);
+
+  const isItemActive = (href: string) => {
+    const hash = href.split("#")[1] || "dashboard";
+    if (hash === "properties") return pathname.startsWith("/admin/properties") || activeHash === hash;
+    if (hash === "leads") return pathname.startsWith("/admin/leads") || activeHash === hash;
+    if (hash === "agenda") return pathname.startsWith("/admin/agenda") || activeHash === hash;
+    if (hash === "settings") return pathname.startsWith("/admin/settings") || activeHash === hash;
+    return pathname.startsWith("/admin") && activeHash === hash;
+  };
+
+  const navButtonClass = (active: boolean) =>
+    cn(
+      "p-3 text-white hover:bg-[#212b42] hover:text-white",
+      active && "bg-white text-black hover:bg-white hover:text-black",
+    );
+
+  const subButtonClass = (active: boolean) =>
+    cn(
+      "ml-4 rounded-md px-3 py-2 text-sm text-white hover:bg-[#212b42] hover:text-white",
+      active && "bg-white text-black hover:bg-white hover:text-black",
+    );
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg">
-              <div role="button" className="flex items-center gap-3">
-                {/* Contenedor del Logo (Siempre visible y centrado al colapsar) */}
+            <SidebarMenuButton size="lg" render={<Link href="/admin#dashboard" />} className="hover:bg-[#284588]">
+              <div className="flex items-center gap-3">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
                   <Command className="size-4" />
                 </div>
 
-                {/* Textos del Header (Se ocultan automáticamente al colapsar) */}
-                <div className="grid flex-1 text-left text-sm leading-tight bg-white">
-                  <span className="font-semibold truncate">Mi Empresa</span>
-                  <span className="text-xs text-muted-foreground truncate">Admin Panel</span>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold text-white">Mi Empresa</span>
+                  <span className="truncate text-xs text-muted-foreground">Inmobiliaria A</span>
                 </div>
               </div>
             </SidebarMenuButton>
@@ -59,68 +94,80 @@ export default function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup />
-        <SidebarGroup />
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-white">OPCIONES</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1">
+              {items.map((item) => (
+                <div key={item.href}>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      isActive={isItemActive(item.href)}
+                      tooltip={item.label}
+                      render={<Link href={item.href} />}
+                      className={navButtonClass(isItemActive(item.href))}
+                    >
+                      <item.Icon />
+                      <span className="flex min-w-0 flex-1 flex-col text-left">
+                        <span className="truncate font-medium">{item.label}</span>
+                      </span>
+                      <ChevronRight className="ml-auto size-4 text-current" />
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {item.href.includes("properties") && (
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          isActive={pathname === "/admin/properties/new"}
+                          render={<Link href="/admin/properties/new" />}
+                          className={subButtonClass(pathname === "/admin/properties/new")}
+                        >
+                          <Plus />
+                          <span>Nueva propiedad</span>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  )}
+
+                  {item.href.includes("leads") && (
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          isActive={pathname === "/admin/leads/new"}
+                          render={<Link href="/admin/leads/new" />}
+                          className={subButtonClass(pathname === "/admin/leads/new")}
+                        >
+                          <Plus />
+                          <span>Nuevo lead</span>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  )}
+                </div>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
       </SidebarContent>
-      <SidebarFooter />
+        <SidebarFooter className="border-t border-gray-500">
+        <div className="flex items-center gap-2">
+          <Avatar className="h-8 w-8 shrink-0">
+            <AvatarFallback className="bg-accent text-white text-xs">
+              MR
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <div className="truncate text-sm font-medium text-white">
+              Maria Rossi
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              Admin
+            </div>
+          </div>
+        </div>
+      </SidebarFooter>
     </Sidebar>
-    // <aside
-    //   className={cn(
-    //     "flex h-screen flex-col justify-between bg-slate-900 text-white transition-all duration-200",
-    //     collapsed ? "w-16" : "w-72",
-    //     className,
-    //   )}
-    // >
-    //   <div>
-    //     <div className={cn("h-20 flex items-center gap-3", collapsed ? "justify-center px-2" : "px-4")}>
-    //       <div className={cn("flex h-10 w-10 items-center justify-center rounded-md font-semibold bg-blue-600 text-white")}>E</div>
-    //       {!collapsed && <div className="text-sm font-semibold">EverProp</div>}
-    //     </div>
-
-    //     <nav className={cn(collapsed ? "px-1" : "px-2 py-4")}>
-    //       <ul className={cn(collapsed ? "space-y-2" : "space-y-1")}>
-    //         {items.map((item) => {
-    //           const active = pathname === item.href || pathname.startsWith(item.href + "/");
-    //           return (
-    //             <li key={item.href}>
-    //               <Link
-    //                 href={item.href}
-    //                 className={cn(
-    //                   "group flex items-center gap-3 rounded-md px-3 py-2 text-sm",
-    //                   collapsed ? "justify-center px-0" : "",
-    //                   active ? "bg-slate-800 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white",
-    //                 )}
-    //               >
-    //                 <span
-    //                   className={cn(
-    //                     "inline-flex h-8 w-8 items-center justify-center rounded-md",
-    //                     active ? "bg-slate-700 text-white" : "bg-transparent text-slate-400",
-    //                   )}
-    //                 >
-    //                   <item.Icon className="h-4 w-4" />
-    //                 </span>
-    //                 {!collapsed && <span>{item.label}</span>}
-    //               </Link>
-    //             </li>
-    //           );
-    //         })}
-    //       </ul>
-    //     </nav>
-    //   </div>
-
-    //   <div className={cn(collapsed ? "text-center px-2 pb-4" : "px-4 pb-4")}>
-    //     <div className={cn("flex items-center gap-3 rounded-md px-3 py-2 hover:bg-slate-800", collapsed ? "justify-center" : "") }>
-    //       <div className="h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-medium text-white flex">MR</div>
-    //       {!collapsed && (
-    //         <div className="flex-1 text-sm">
-    //           <div className="font-medium">María Rossi</div>
-    //           <div className="text-xs text-slate-300">Admin</div>
-    //         </div>
-    //       )}
-
-    //     </div>
-          
-    //   </div>
-    // </aside>
   );
 }
