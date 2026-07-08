@@ -19,6 +19,20 @@ export type Property = {
   bathrooms: number;
   area_m2?: number;
   mainImage?: string;
+  visits?: Visit[];
+};
+
+export type Visit = {
+  id: string;
+  leadId?: string;
+  propertyId?: string;
+  leadName?: string;
+  propertyTitle?: string;
+  phone?: string;
+  email?: string;
+  scheduledAt: string;
+  status: "scheduled" | "completed" | "cancelled";
+  notes?: string;
 };
 
 export type Lead = {
@@ -31,6 +45,7 @@ export type Lead = {
   lastActivity: string; // ISO date
   phone?: string;
   email?: string;
+  visits?: Visit[];
 };
 
 export const companies: Company[] = [

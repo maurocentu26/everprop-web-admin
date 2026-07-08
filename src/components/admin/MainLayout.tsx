@@ -12,11 +12,10 @@ type Props = {
 
 export default function MainLayout({ children }: Props) {
   const [collapsed, setCollapsed] = useState(false);
-  const toggleSidebar = () => setCollapsed(!collapsed);
 
   return (
     <div className="min-h-screen flex bg-white">
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={false}>
         <AppSidebar  />
         <div className="flex flex-1 flex-col">
           <AdminNavbar />

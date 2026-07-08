@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Badge from "@/components/ui/badge";
 import type { Property } from "@/data/admin-sample";
 import { Building2 } from "lucide-react";
@@ -25,7 +26,7 @@ export default function PropertyCard({ property }: Props) {
   return (
     <tr className="group border-t border-slate-200 text-sm text-slate-700 hover:bg-slate-50/70">
       <td className="px-4 py-4 align-middle first:rounded-l-2xl last:rounded-r-2xl sm:px-5">
-        <div className="flex min-w-0 items-center gap-4">
+        <Link href={`/admin/properties/${property.id}`} className="flex min-w-0 items-center gap-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
             <Building2 className="h-5 w-5" />
           </div>
@@ -36,7 +37,7 @@ export default function PropertyCard({ property }: Props) {
               {property.id} · {property.neighborhood} {property.city ? `· ${property.city}` : ""}
             </p>
           </div>
-        </div>
+        </Link>
       </td>
 
       <td className="px-4 py-4 align-middle sm:px-5">

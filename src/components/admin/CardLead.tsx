@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { Phone, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -52,10 +53,11 @@ export default function CardLead({ id, name, phone, email, origin, property, las
   const op = property?.operation;
 
   return (
-    <div
+    <Link
+      href={`/admin/leads/${id}`}
       draggable={draggable}
       onDragStart={(e) => onDragStart?.(e, id)}
-      className={cn("relative rounded-md border border-slate-100 bg-white p-4 shadow-sm cursor-grab ", className)}
+      className={cn("relative block rounded-md border border-slate-100 bg-white p-4 shadow-sm cursor-grab ", className)}
     >
       {op && (
         <span className={cn(
@@ -79,7 +81,7 @@ export default function CardLead({ id, name, phone, email, origin, property, las
                 <div className="text-[15px] font-semibold text-slate-900">{formatPrice(property?.price, property?.currency)}</div>
               <button
                 onClick={() => setShowPhone((s) => !s)}
-                className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-2 py-1 text-xs text-slate-700"
+                className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-slate-300"
                 aria-label="Show phone"
               >
                 <Phone className="h-4 w-4" />
@@ -88,7 +90,7 @@ export default function CardLead({ id, name, phone, email, origin, property, las
 
               <button
                 onClick={() => setShowEmail((s) => !s)}
-                className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-2 py-1 text-xs text-slate-700"
+                className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-slate-300"
                 aria-label="Show email"
               >
                 <Mail className="h-4 w-4" />
@@ -101,6 +103,6 @@ export default function CardLead({ id, name, phone, email, origin, property, las
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

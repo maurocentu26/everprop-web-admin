@@ -18,7 +18,7 @@ export default function MetricCard({ title, value, delta, Icon }: Props) {
   const deltaIsNegative = typeof delta === "string" && delta.trim().startsWith("-");
 
   return (
-    <Card>
+    <Card className="bg-white text-slate-900">
       <CardHeader className="flex justify-between">
         <CardTitle>{title}</CardTitle>
         {Icon && <Icon size={20}/>}

@@ -54,3 +54,18 @@ export function savePropertyList(list: Property[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(ADMIN_STORAGE_KEYS.properties, JSON.stringify(list));
 }
+
+export function removeVisitById(visitId: string, seedLeads: Lead[], seedProperties: Property[], companyId = "c1") {
+  if (typeof window === "undefined") return { leads: seedLeads, properties: seedProperties };
+
+  const leads = loadLeadList(seedLeads, companyId);
+  const properties = loadPropertyList(seedProperties, companyId);
+
+  const nextLeads = leads.map((lead) => ({ ...lead, visits: (lead.visits ?? []).filter((v) => v.id !== visitId) }));
+  const nextProperties = properties.map((prop) => ({ ...prop, visits: (prop.visits ?? []).filter((v) => v.id !== visitId) }));
+
+  window.localStorage.setItem(ADMIN_STORAGE_KEYS.leads, JSON.stringify(nextLeads));
+  window.localStorage.setItem(ADMIN_STORAGE_KEYS.properties, JSON.stringify(nextProperties));
+
+  return { leads: nextLeads, properties: nextProperties };
+}

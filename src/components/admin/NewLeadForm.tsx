@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormLabel, FormMessage } from "@/components/ui/form";
 import { leads as sampleLeads, properties as sampleProperties, type Lead } from "@/data/admin-sample";
 import { loadLeadList, loadPropertyList, saveLeadList } from "@/lib/admin-storage";
-import { SuccessModal } from "./SuccessModal";
 
 type Props = {
   companyId?: string;
@@ -17,200 +22,351 @@ type Props = {
 
 const ORIGINS = ["Web", "WhatsApp", "Portal", "Referido", "Instagram"];
 const STAGES: Lead["stage"][] = ["new", "contacted", "visiting", "negotiation", "closing"];
+const STAGE_LABELS: Record<Lead["stage"], string> = {
+  new: "Nuevo",
+  contacted: "Contactado",
+  visiting: "Visitando",
+  negotiation: "Negociación",
+  closing: "Cierre",
+};
 
-export default function NewLeadForm({ companyId = "c1" }: Props) {
-  const [isSuccessOpen, setIsSuccessOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+const formSchema = z.object({
+  name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres.").max(60, "El nombre no puede superar 60 caracteres."),
+  origin: z.string().min(1, "Seleccioná un origen."),
+  email: z.string().trim().max(100, "El email no puede superar 100 caracteres.").optional().or(z.literal("")),
+  phone: z.string().trim().max(25, "El teléfono no puede superar 25 caracteres.").optional().or(z.literal("")),
+  propertyId: z.string().optional(),
+  stage: z.enum(STAGES as [Lead["stage"], ...Lead["stage"][]]),
+  notes: z.string().trim().max(250, "Las notas no pueden superar 250 caracteres.").optional().or(z.literal("")),
+});
+
+export function NewLeadForm({ companyId = "c1" }: Props) {
   const router = useRouter();
-  const [propertyOptions, setPropertyOptions] = useState(sampleProperties.filter((property) => property.companyId === companyId));
-  const [error, setError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    origin: "Web",
-    propertyId: sampleProperties[0]?.id ?? "",
-    stage: "new" as Lead["stage"],
-    notes: "",
+  const [propertyOptions, setPropertyOptions] = useState<Array<{ id: string; title: string }>>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [savedLeadName, setSavedLeadName] = useState("");
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      origin: ORIGINS[0],
+      email: "",
+      phone: "",
+      propertyId: "",
+      stage: "new",
+      notes: "",
+    },
   });
 
   useEffect(() => {
     const nextProperties = loadPropertyList(sampleProperties, companyId);
-    setPropertyOptions(nextProperties);
-    setForm((current) => ({
-      ...current,
-      propertyId: current.propertyId || nextProperties[0]?.id || "",
-    }));
-  }, [companyId]);
+    const options = nextProperties.map((property) => ({ id: property.id, title: property.title }));
+    setPropertyOptions(options);
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setIsSaving(true);
-    setIsSubmitting(true);
-
-    try {
-      const trimmedName = form.name.trim();
-      if (!trimmedName) {
-        setError("El nombre del lead es obligatorio.");
-        setIsSaving(false);
-        return;
-      }
-
-      const nextLead: Lead = {
-        id: crypto.randomUUID(),
-        companyId,
-        name: trimmedName,
-        origin: form.origin,
-        propertyId: form.propertyId || undefined,
-        stage: form.stage,
-        lastActivity: new Date().toISOString(),
-        phone: form.phone.trim() || undefined,
-        email: form.email.trim() || undefined,
-      };
-
-      if (propertyOptions.length === 0) {
-        setError("No hay propiedades disponibles para asociar.");
-        setIsSaving(false);
-        return;
-      }
-
-      const existingLeads = loadLeadList(sampleLeads, companyId);
-      saveLeadList([...existingLeads, nextLead]);
-      router.push("/admin#leads");
-      setIsSuccessOpen(true)
-    } catch {
-      setError("No se pudo guardar el lead.");
-      setIsSaving(false);
+    const currentPropertyId = form.getValues("propertyId");
+    if (!currentPropertyId && options[0]) {
+      form.setValue("propertyId", options[0].id, { shouldValidate: true });
     }
+  }, [companyId, form]);
+
+  async function onSubmit(data: z.infer<typeof formSchema>) {
+    const trimmedName = data.name.trim();
+    const email = data.email?.trim() ?? "";
+    const phone = data.phone?.trim() ?? "";
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      form.setError("email", {
+        type: "validate",
+        message: "Ingresá un email válido.",
+      });
+      return;
+    }
+
+    if (phone && !/^\+?[0-9\s().-]{7,20}$/.test(phone)) {
+      form.setError("phone", {
+        type: "validate",
+        message: "Ingresá un teléfono válido.",
+      });
+      return;
+    }
+
+    const nextLead: Lead = {
+      id: crypto.randomUUID(),
+      companyId,
+      name: trimmedName,
+      origin: data.origin,
+      propertyId: data.propertyId || undefined,
+      stage: data.stage,
+      lastActivity: new Date().toISOString(),
+      phone: phone || undefined,
+      email: email || undefined,
+    };
+
+    const existingLeads = loadLeadList(sampleLeads, companyId);
+    saveLeadList([...existingLeads, nextLead]);
+
+    setSavedLeadName(trimmedName);
+    setShowSuccessModal(true);
+
+    toast.success("Lead creado", {
+      description: `${trimmedName} se agregó al pipeline correctamente.`,
+    });
+
+    form.reset({
+      name: "",
+      origin: ORIGINS[0],
+      email: "",
+      phone: "",
+      propertyId: propertyOptions[0]?.id ?? "",
+      stage: "new",
+      notes: "",
+    });
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader>
-        <CardTitle>Nuevo lead</CardTitle>
-        <p className="mt-1 text-sm text-slate-500">
-          Cargá un nuevo contacto y se guardará en localStorage para el MVP.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <Form onSubmit={handleSubmit}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField>
-              <FormLabel>Nombre *</FormLabel>
-              <FormControl>
-                <Input
-                  value={form.name}
-                  onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="Carla Méndez"
-                  required
-                />
-              </FormControl>
-            </FormField>
+    <Card className="w-full overflow-hidden border border-slate-200 bg-white shadow-[0_16px_50px_-24px_rgba(15,23,42,0.35)] max-w-4xl ml-auto mr-auto py-0">
+      <div className="bg-slate-950/95 px-6 py-5 text-white">
+        <CardHeader className="p-0">
+          <CardTitle className="text-xl font-semibold text-white">Agregar nuevo lead</CardTitle>
+          <CardDescription className="mt-2 text-sm text-slate-300">
+            Completá los datos del contacto para incorporarlo al pipeline de ventas.
+          </CardDescription>
+        </CardHeader>
+      </div>
 
-            <FormField>
-              <FormLabel>Origen</FormLabel>
-              <FormControl>
-                <select
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={form.origin}
-                  onChange={(event) => setForm((current) => ({ ...current, origin: event.target.value }))}
-                >
-                  {ORIGINS.map((origin) => (
-                    <option key={origin} value={origin}>
-                      {origin}
-                    </option>
-                  ))}
-                </select>
-              </FormControl>
-            </FormField>
+      <CardContent className="px-6 py-6">
+        <form id="new-lead-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FieldGroup className="grid gap-4 md:grid-cols-2">
+            <Controller
+              name="name"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field className="md:col-span-2" data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="lead-name" className="text-sm font-medium text-slate-800">
+                    Nombre completo <span className="text-rose-500">*</span>
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="lead-name"
+                    placeholder="Carla Méndez"
+                    autoComplete="name"
+                    aria-invalid={fieldState.invalid}
+                    className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
 
-            <FormField>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                  placeholder="carla@example.com"
-                />
-              </FormControl>
-            </FormField>
+            <Controller
+              name="origin"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="lead-origin" className="text-sm font-medium text-slate-800">
+                    Origen <span className="text-rose-500">*</span>
+                  </FieldLabel>
+                  <select
+                    {...field}
+                    id="lead-origin"
+                    className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    aria-invalid={fieldState.invalid}
+                  >
+                    {ORIGINS.map((origin) => (
+                      <option key={origin} value={origin}>
+                        {origin}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
 
-            <FormField>
-              <FormLabel>Teléfono</FormLabel>
-              <FormControl>
-                <Input
-                  value={form.phone}
-                  onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                  placeholder="+54 9 11 ..."
-                />
-              </FormControl>
-            </FormField>
+            <Controller
+              name="stage"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="lead-stage" className="text-sm font-medium text-slate-800">
+                    Estado inicial
+                  </FieldLabel>
+                  <select
+                    {...field}
+                    id="lead-stage"
+                    className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    aria-invalid={fieldState.invalid}
+                  >
+                    {STAGES.map((stage) => (
+                      <option key={stage} value={stage}>
+                        {STAGE_LABELS[stage]}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
 
-            <FormField>
-              <FormLabel>Propiedad de interés</FormLabel>
-              <FormControl>
-                <select
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={form.propertyId}
-                  onChange={(event) => setForm((current) => ({ ...current, propertyId: event.target.value }))}
-                >
-                  {propertyOptions.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      {property.title}
-                    </option>
-                  ))}
-                </select>
-              </FormControl>
-            </FormField>
+            <Controller
+              name="email"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="lead-email" className="text-sm font-medium text-slate-800">
+                    Email
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="lead-email"
+                    type="email"
+                    placeholder="carla@example.com"
+                    autoComplete="email"
+                    aria-invalid={fieldState.invalid}
+                    className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
 
-            <FormField>
-              <FormLabel>Estado</FormLabel>
-              <FormControl>
-                <select
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={form.stage}
-                  onChange={(event) => setForm((current) => ({ ...current, stage: event.target.value as Lead["stage"] }))}
-                >
-                  {STAGES.map((stage) => (
-                    <option key={stage} value={stage}>
-                      {stage}
-                    </option>
-                  ))}
-                </select>
-              </FormControl>
-            </FormField>
-          </div>
+            <Controller
+              name="phone"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="lead-phone" className="text-sm font-medium text-slate-800">
+                    Teléfono
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="lead-phone"
+                    placeholder="+54 9 11 1234 5678"
+                    autoComplete="tel"
+                    aria-invalid={fieldState.invalid}
+                    className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
 
-          <FormField>
-            <FormLabel>Notas</FormLabel>
-            <FormControl>
-              <Textarea
-                value={form.notes}
-                onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-                placeholder="Contexto del contacto, pedidos, próximos pasos..."
-              />
-            </FormControl>
-          </FormField>
+            <Controller
+              name="propertyId"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="lead-property" className="text-sm font-medium text-slate-800">
+                    Propiedad de interés
+                  </FieldLabel>
+                  <select
+                    {...field}
+                    id="lead-property"
+                    className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    aria-invalid={fieldState.invalid}
+                  >
+                    <option value="">Sin propiedad asociada</option>
+                    {propertyOptions.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {property.title}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldDescription className="text-slate-500">
+                    {propertyOptions.length > 0
+                      ? "Podés vincular el lead con una propiedad disponible."
+                      : "No hay propiedades cargadas todavía; podés guardar el lead sin asociarlo."}
+                  </FieldDescription>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
 
-          {error && <FormMessage>{error}</FormMessage>}
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? "Guardando..." : "Guardar lead"}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => router.push("/admin#leads") }>
-              Volver al pipeline
-            </Button>
-          </div>
-        </Form>
-        <SuccessModal 
-          isOpen={isSuccessOpen} 
-          onOpenChange={setIsSuccessOpen}
-        />
+            <Controller
+              name="notes"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field className="md:col-span-2" data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="lead-notes" className="text-sm font-medium text-slate-800">
+                    Notas
+                  </FieldLabel>
+                  <Textarea
+                    {...field}
+                    id="lead-notes"
+                    rows={5}
+                    placeholder="Contexto del contacto, preferencias, próximos pasos..."
+                    aria-invalid={fieldState.invalid}
+                    className="min-h-24 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+          </FieldGroup>
+        </form>
       </CardContent>
+
+      <CardFooter className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          className="border-slate-300 text-slate-700 hover:bg-slate-100"
+          onClick={() => {
+            form.reset({
+              name: "",
+              origin: ORIGINS[0],
+              email: "",
+              phone: "",
+              propertyId: propertyOptions[0]?.id ?? "",
+              stage: "new",
+              notes: "",
+            });
+          }}
+        >
+          Limpiar
+        </Button>
+        <Button type="submit" form="new-lead-form" className="bg-slate-950 text-white shadow-sm transition hover:bg-slate-800">
+          Guardar lead
+        </Button>
+      </CardFooter>
+
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Lead agregado con éxito</DialogTitle>
+            <DialogDescription className={"text-black"}>
+              {savedLeadName ? `${savedLeadName} ya está en el pipeline.` : "El lead se agregó correctamente."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowSuccessModal(false);
+                form.reset({
+                  name: "",
+                  origin: ORIGINS[0],
+                  email: "",
+                  phone: "",
+                  propertyId: propertyOptions[0]?.id ?? "",
+                  stage: "new",
+                  notes: "",
+                });
+              }}
+            >
+              Seguir agregando leads
+            </Button>
+            <Button
+              onClick={() => router.push("/admin#leads")}
+              className="bg-slate-950 text-white hover:bg-slate-800"
+            >
+              Volver a la vista de leads
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

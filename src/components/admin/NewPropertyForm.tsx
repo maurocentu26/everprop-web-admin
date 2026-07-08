@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormLabel, FormMessage } from "@/components/ui/form";
 import { properties as sampleProperties, type Property } from "@/data/admin-sample";
 import { loadPropertyList, savePropertyList } from "@/lib/admin-storage";
 
@@ -15,6 +15,11 @@ type Props = {
 };
 
 const OPERATIONS: Property["operation"][] = ["sale", "rent", "temporal"];
+const OPERATION_LABELS: Record<Property["operation"], string> = {
+  sale: "Venta",
+  rent: "Alquiler",
+  temporal: "Temporal",
+};
 const PROPERTY_TYPES = ["Departamento", "Casa", "PH", "Local", "Terreno", "Oficina"];
 const CURRENCIES: Property["currency"][] = ["USD", "ARS"];
 
@@ -40,7 +45,7 @@ export default function NewPropertyForm({ companyId = "c1" }: Props) {
     // No-op: el formulario solo necesita montar en cliente para usar localStorage al guardar.
   }, []);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setIsSaving(true);
@@ -86,180 +91,222 @@ export default function NewPropertyForm({ companyId = "c1" }: Props) {
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader>
-        <CardTitle>Nueva propiedad</CardTitle>
-        <p className="mt-1 text-sm text-slate-500">
-          Cargá un nuevo inmueble y se guardará en localStorage para el MVP.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <Form onSubmit={handleSubmit}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField className="md:col-span-2">
-              <FormLabel>Título *</FormLabel>
-              <FormControl>
-                <Input
-                  value={form.title}
-                  onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                  placeholder="Departamento 3 Ambientes con Cochera"
-                  required
-                />
-              </FormControl>
-            </FormField>
+    <Card className="w-full overflow-hidden border border-slate-200 bg-white shadow-[0_16px_50px_-24px_rgba(15,23,42,0.35)] max-w-4xl ml-auto mr-auto py-0">
+      <div className="bg-slate-950/95 px-6 py-5 text-white">
+        <CardHeader className="p-0">
+          <CardTitle className="text-xl font-semibold text-white">Nueva propiedad</CardTitle>
+          <CardDescription className="mt-2 text-sm text-slate-300">
+            Cargá un nuevo inmueble y se guardará en localStorage para el MVP.
+          </CardDescription>
+        </CardHeader>
+      </div>
 
-            <FormField>
-              <FormLabel>Operación</FormLabel>
-              <FormControl>
-                <select
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={form.operation}
-                  onChange={(event) => setForm((current) => ({ ...current, operation: event.target.value as Property["operation"] }))}
-                >
-                  {OPERATIONS.map((operation) => (
-                    <option key={operation} value={operation}>
-                      {operation}
-                    </option>
-                  ))}
-                </select>
-              </FormControl>
-            </FormField>
-
-            <FormField>
-              <FormLabel>Tipo de propiedad</FormLabel>
-              <FormControl>
-                <select
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={form.propertyType}
-                  onChange={(event) => setForm((current) => ({ ...current, propertyType: event.target.value }))}
-                >
-                  {PROPERTY_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </FormControl>
-            </FormField>
-
-            <FormField>
-              <FormLabel>Precio *</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.price}
-                  onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
-                  placeholder="245000"
-                  required
-                />
-              </FormControl>
-            </FormField>
-
-            <FormField>
-              <FormLabel>Moneda</FormLabel>
-              <FormControl>
-                <select
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={form.currency}
-                  onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value as Property["currency"] }))}
-                >
-                  {CURRENCIES.map((currency) => (
-                    <option key={currency} value={currency}>
-                      {currency}
-                    </option>
-                  ))}
-                </select>
-              </FormControl>
-            </FormField>
-
-            <FormField>
-              <FormLabel>Ciudad *</FormLabel>
-              <FormControl>
-                <Input
-                  value={form.city}
-                  onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
-                  placeholder="Buenos Aires"
-                  required
-                />
-              </FormControl>
-            </FormField>
-
-            <FormField>
-              <FormLabel>Barrio / Zona *</FormLabel>
-              <FormControl>
-                <Input
-                  value={form.neighborhood}
-                  onChange={(event) => setForm((current) => ({ ...current, neighborhood: event.target.value }))}
-                  placeholder="Palermo"
-                  required
-                />
-              </FormControl>
-            </FormField>
-
-            <FormField>
-              <FormLabel>Dormitorios</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min="0"
-                  value={form.bedrooms}
-                  onChange={(event) => setForm((current) => ({ ...current, bedrooms: event.target.value }))}
-                  placeholder="2"
-                />
-              </FormControl>
-            </FormField>
-
-            <FormField>
-              <FormLabel>Baños</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min="0"
-                  value={form.bathrooms}
-                  onChange={(event) => setForm((current) => ({ ...current, bathrooms: event.target.value }))}
-                  placeholder="2"
-                />
-              </FormControl>
-            </FormField>
-
-            <FormField>
-              <FormLabel>Superficie total m²</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min="0"
-                  value={form.area_m2}
-                  onChange={(event) => setForm((current) => ({ ...current, area_m2: event.target.value }))}
-                  placeholder="85"
-                />
-              </FormControl>
-            </FormField>
-          </div>
-
-          <FormField>
-            <FormLabel>Descripción</FormLabel>
-            <FormControl>
-              <Textarea
-                value={form.description}
-                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Detalle del inmueble, amenities, entorno..."
+      <CardContent className="px-6 py-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <FieldGroup className="grid gap-4 md:grid-cols-2">
+            <Field className="md:col-span-2">
+              <FieldLabel htmlFor="property-title" className="text-sm font-medium text-slate-800">
+                Título <span className="text-rose-500">*</span>
+              </FieldLabel>
+              <Input
+                id="property-title"
+                value={form.title}
+                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                placeholder="Departamento 3 Ambientes con Cochera"
+                className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
               />
-            </FormControl>
-          </FormField>
+            </Field>
 
-          {error && <FormMessage>{error}</FormMessage>}
+            <Field>
+              <FieldLabel htmlFor="property-operation" className="text-sm font-medium text-slate-800">
+                Operación
+              </FieldLabel>
+              <select
+                id="property-operation"
+                className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                value={form.operation}
+                onChange={(event) => setForm((current) => ({ ...current, operation: event.target.value as Property["operation"] }))}
+              >
+                {OPERATIONS.map((operation) => (
+                  <option key={operation} value={operation}>
+                    {OPERATION_LABELS[operation]}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button type="submit" disabled={isSaving}>
+            <Field>
+              <FieldLabel htmlFor="property-type" className="text-sm font-medium text-slate-800">
+                Tipo de propiedad
+              </FieldLabel>
+              <select
+                id="property-type"
+                className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                value={form.propertyType}
+                onChange={(event) => setForm((current) => ({ ...current, propertyType: event.target.value }))}
+              >
+                {PROPERTY_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="property-price" className="text-sm font-medium text-slate-800">
+                Precio <span className="text-rose-500">*</span>
+              </FieldLabel>
+              <Input
+                id="property-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.price}
+                onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
+                placeholder="245000"
+                className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="property-currency" className="text-sm font-medium text-slate-800">
+                Moneda
+              </FieldLabel>
+              <select
+                id="property-currency"
+                className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                value={form.currency}
+                onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value as Property["currency"] }))}
+              >
+                {CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="property-city" className="text-sm font-medium text-slate-800">
+                Ciudad <span className="text-rose-500">*</span>
+              </FieldLabel>
+              <Input
+                id="property-city"
+                value={form.city}
+                onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
+                placeholder="Buenos Aires"
+                className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="property-neighborhood" className="text-sm font-medium text-slate-800">
+                Barrio / Zona <span className="text-rose-500">*</span>
+              </FieldLabel>
+              <Input
+                id="property-neighborhood"
+                value={form.neighborhood}
+                onChange={(event) => setForm((current) => ({ ...current, neighborhood: event.target.value }))}
+                placeholder="Palermo"
+                className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="property-bedrooms" className="text-sm font-medium text-slate-800">
+                Dormitorios
+              </FieldLabel>
+              <Input
+                id="property-bedrooms"
+                type="number"
+                min="0"
+                value={form.bedrooms}
+                onChange={(event) => setForm((current) => ({ ...current, bedrooms: event.target.value }))}
+                placeholder="2"
+                className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="property-bathrooms" className="text-sm font-medium text-slate-800">
+                Baños
+              </FieldLabel>
+              <Input
+                id="property-bathrooms"
+                type="number"
+                min="0"
+                value={form.bathrooms}
+                onChange={(event) => setForm((current) => ({ ...current, bathrooms: event.target.value }))}
+                placeholder="2"
+                className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="property-area" className="text-sm font-medium text-slate-800">
+                Superficie total m²
+              </FieldLabel>
+              <Input
+                id="property-area"
+                type="number"
+                min="0"
+                value={form.area_m2}
+                onChange={(event) => setForm((current) => ({ ...current, area_m2: event.target.value }))}
+                placeholder="85"
+                className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+              />
+            </Field>
+          </FieldGroup>
+
+          <Field className="mt-2">
+            <FieldLabel htmlFor="property-description" className="text-sm font-medium text-slate-800">
+              Descripción
+            </FieldLabel>
+            <Textarea
+              id="property-description"
+              value={form.description}
+              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+              placeholder="Detalle del inmueble, amenities, entorno..."
+              rows={5}
+              className="min-h-24 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+            />
+            <FieldDescription className="text-slate-500">
+              Agregá datos útiles para identificar rápido el inmueble.
+            </FieldDescription>
+          </Field>
+
+          {error && <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+
+          <CardFooter className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-0 py-4 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-slate-300 text-slate-700 hover:bg-slate-100"
+              onClick={() => {
+                setForm({
+                  title: "",
+                  operation: "sale" as Property["operation"],
+                  propertyType: "Departamento",
+                  price: "",
+                  currency: "USD" as Property["currency"],
+                  city: "",
+                  neighborhood: "",
+                  bedrooms: "",
+                  bathrooms: "",
+                  area_m2: "",
+                  description: "",
+                });
+                setError("");
+              }}
+            >
+              Limpiar
+            </Button>
+            <Button type="submit" disabled={isSaving} className="bg-slate-950 text-white shadow-sm transition hover:bg-slate-800">
               {isSaving ? "Guardando..." : "Guardar propiedad"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.push("/admin#properties") }>
-              Volver al inventario
-            </Button>
-          </div>
-        </Form>
+          </CardFooter>
+        </form>
       </CardContent>
     </Card>
   );

@@ -35,7 +35,7 @@ const items: NavItem[] = [
   { label: "Dashboard", href: "/admin#dashboard", Icon: Home, description: "Resumen general" },
   { label: "Leads", href: "/admin#leads", Icon: Users, description: "Pipeline comercial" },
   { label: "Propiedades", href: "/admin#properties", Icon: Building2, description: "Inventario y filtros" },
-  { label: "Agenda", href: "/admin#agenda", Icon: CalendarDays, description: "Visitas programadas" },
+  { label: "Agenda", href: "/admin/agenda", Icon: CalendarDays, description: "Visitas programadas" },
   { label: "Configuración", href: "/admin#settings", Icon: Settings, description: "Ajustes de la inmobiliaria" },
 ];
 
