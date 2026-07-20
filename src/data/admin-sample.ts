@@ -40,9 +40,9 @@ export type Lead = {
   companyId: string;
   name: string;
   origin: string;
-  propertyId?: string;
-  stage: 'new' | 'contacted' | 'visiting' | 'negotiation' | 'closing';
-  lastActivity: string; // ISO date
+  propertyIds: string[]; 
+  stage: 'new' | 'contacted' | 'visiting' | 'closing';
+  lastActivity: string;
   phone?: string;
   email?: string;
   visits?: Visit[];
@@ -174,7 +174,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Carla Méndez',
     origin: 'Web',
-    propertyId: 'p1',
+    propertyIds: ['p1'],
     stage: 'new',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
     phone: '+54 9 11 1234 5678',
@@ -185,7 +185,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Diego Ramírez',
     origin: 'WhatsApp',
-    propertyId: 'p2',
+    propertyIds: ['p2'],
     stage: 'contacted',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     phone: '+54 9 11 8765 4321',
@@ -196,7 +196,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Mauro Centurión',
     origin: 'WhatsApp',
-    propertyId: 'p2',
+    propertyIds: ['p2'],
     stage: 'contacted',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     phone: '+54 9 11 5555 6666',
@@ -207,7 +207,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Julia Díaz',
     origin: 'Web',
-    propertyId: 'p3',
+    propertyIds: ['p3'],
     stage: 'visiting',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
     phone: '+54 9 11 2345 6789',
@@ -218,8 +218,8 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Martín Ruiz',
     origin: 'Referido',
-    propertyId: 'p5',
-    stage: 'negotiation',
+    propertyIds: ['p5'],
+    stage: 'closing',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
     phone: '+54 9 11 3456 7890',
     email: 'martin.ruiz@example.com',
@@ -229,7 +229,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Sol López',
     origin: 'Portal',
-    propertyId: 'p6',
+    propertyIds: ['p6'],
     stage: 'closing',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
     phone: '+54 9 11 4567 8901',
@@ -240,7 +240,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Agustina Ferreyra',
     origin: 'Instagram',
-    propertyId: 'p4',
+    propertyIds: ['p4'],
     stage: 'new',
     lastActivity: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
     phone: '+54 9 11 5678 9012',
@@ -251,7 +251,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Federico Silva',
     origin: 'Web',
-    propertyId: 'p7',
+    propertyIds: ['p7'],
     stage: 'contacted',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
     phone: '+54 9 11 6789 0123',
@@ -262,7 +262,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Camila Torres',
     origin: 'WhatsApp',
-    propertyId: 'p8',
+    propertyIds: ['p8'],
     stage: 'visiting',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
     phone: '+54 9 11 7890 1234',
@@ -273,8 +273,8 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Nicolás Ponce',
     origin: 'Referido',
-    propertyId: 'p1',
-    stage: 'negotiation',
+    propertyIds: ['p1'],
+    stage: 'closing',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
     phone: '+54 9 11 8901 2345',
     email: 'nicolas.ponce@example.com',
@@ -284,7 +284,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Paula Benítez',
     origin: 'Portal',
-    propertyId: 'p2',
+    propertyIds: ['p2'],
     stage: 'closing',
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 40).toISOString(),
     phone: '+54 9 11 9012 3456',
@@ -295,7 +295,7 @@ export const leads: Lead[] = [
     companyId: 'c1',
     name: 'Tomás Herrera',
     origin: 'Web',
-    propertyId: 'p3',
+    propertyIds: ['p3'],
     stage: 'new',
     lastActivity: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     phone: '+54 9 11 0123 4567',

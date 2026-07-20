@@ -1,14 +1,33 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { CalendarDays, Clock3, UserRound, Trash } from "lucide-react";
-import type { Visit, Lead } from "@/data/admin-sample";
+import { 
+    CalendarDays, 
+    Clock, 
+    User, 
+    Trash2, 
+    Plus, 
+    Phone, 
+    Mail, 
+    ChevronRight,
+    StickyNote
+} from "lucide-react";
+import type { Visit, Lead, Property } from "@/data/admin-sample";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogFooter, 
+    DialogDescription 
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import Badge from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type Props = {
   title: string;
@@ -20,16 +39,19 @@ type Props = {
   leadOptions?: Lead[];
   defaultPhone?: string;
   defaultEmail?: string;
+  propertyOptions?: Property[]
 };
 
 function formatVisitDate(iso: string) {
   try {
-    return new Date(iso).toLocaleString("es-AR", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+    const date = new Date(iso);
+    return {
+        day: date.toLocaleDateString("es-AR", { day: '2-digit', month: 'short' }),
+        time: date.toLocaleTimeString("es-AR", { hour: '2-digit', minute: '2-digit' }),
+        full: date.toLocaleString("es-AR", { dateStyle: "long", timeStyle: "short" })
+    };
   } catch {
-    return iso;
+    return { day: iso, time: "", full: iso };
   }
 }
 
@@ -43,6 +65,7 @@ export default function VisitManager({
   leadOptions,
   defaultPhone,
   defaultEmail,
+  propertyOptions
 }: Props) {
   const [guestName, setGuestName] = useState(defaultGuestName ?? "");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -52,31 +75,24 @@ export default function VisitManager({
   const [phone, setPhone] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [deletingVisitId, setDeletingVisitId] = useState<string | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
+
 
   useEffect(() => {
-    // When parent provides defaults (e.g., from LeadDetailView), prefill fields
     if (defaultGuestName) setGuestName(defaultGuestName);
     if (defaultPhone) setPhone(defaultPhone);
     if (defaultEmail) setEmail(defaultEmail);
   }, [defaultGuestName, defaultPhone, defaultEmail]);
-  const [deletingVisitId, setDeletingVisitId] = useState<string | null>(null);
 
   const sortedVisits = useMemo(() => {
     return [...visits].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
   }, [visits]);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (!guestName.trim()) {
-      setError("Ingresá el nombre del visitante.");
-      return;
-    }
-
-    if (!scheduledAt) {
-      setError("Seleccioná una fecha y hora para la visita.");
-      return;
-    }
+    if (!guestName.trim()) { setError("Ingresá el nombre."); return; }
+    if (!scheduledAt) { setError("Seleccioná fecha y hora."); return; }
 
     const visit: Visit = {
       id: `visit-${Date.now()}`,
@@ -87,192 +103,206 @@ export default function VisitManager({
       scheduledAt: new Date(scheduledAt).toISOString(),
       notes: notes.trim() || undefined,
       status: "scheduled",
+      propertyId: selectedPropertyId || undefined,
+      propertyTitle: propertyOptions?.find(p => p.id === selectedPropertyId)?.title
     };
 
     onSchedule(visit);
-    setGuestName(defaultGuestName ?? "");
     setScheduledAt("");
     setNotes("");
     setError("");
+    toast.success("Visita agendada correctamente");
   }
 
   return (
-    <Card className="w-full overflow-hidden border border-slate-200 bg-white shadow-[0_16px_50px_-24px_rgba(15,23,42,0.35)] py-0">
-      <div className="bg-slate-950/95 px-6 py-5 text-white">
-        <CardHeader className="p-0">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-xl font-semibold text-white">{title}</CardTitle>
-              <CardDescription className="mt-2 text-sm text-slate-300">{subtitle}</CardDescription>
-            </div>
-            <div className="rounded-full bg-white/10 p-2 text-white">
-              <CalendarDays className="h-5 w-5" />
-            </div>
-          </div>
-        </CardHeader>
+    <div className="w-full space-y-8">
+      {/* Header Section */}
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-blue-600" />
+            {title}
+          </h2>
+          <p className="text-sm text-slate-500">{subtitle}</p>
+        </div>
       </div>
 
-      <CardContent className="px-6 py-6">
-        <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-[1.1fr_0.9fr_auto]">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Visitante</label>
-            <div className="relative">
-              <Input
-                value={guestName}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setGuestName(value);
-                  setShowSuggestions(true);
-                  // try to detect exact match
-                  if (leadOptions && leadOptions.length) {
-                    const match = leadOptions.find((l) => l.name === value);
-                    if (match) {
-                      setSelectedLeadId(match.id);
-                      if (!notes.trim() && (match.phone || match.email)) {
-                        const parts: string[] = [];
-                        if (match.phone) parts.push(`Tel: ${match.phone}`);
-                        if (match.email) parts.push(`Email: ${match.email}`);
-                        setNotes(parts.join(" • "));
-                      }
-                      setPhone(match.phone ?? "");
-                      setEmail(match.email ?? "");
-                      setShowSuggestions(false);
-                      return;
-                    }
-                  }
-                  setSelectedLeadId(undefined);
-                }}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                placeholder="Nombre del visitante"
-                className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200"
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Formulario de Agendamiento */}
+        <div className="xl:col-span-1">
+          <form onSubmit={handleSubmit} className="space-y-4 p-6 rounded-2xl border border-slate-100 bg-slate-50/50">
+            {propertyOptions && propertyOptions.length > 0 && (
+              <div className="space-y-1.5 mb-4">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase">¿Qué propiedad van a visitar?</label>
+                  <select 
+                      value={selectedPropertyId} 
+                      onChange={(e) => setSelectedPropertyId(e.target.value)}
+                      className="w-full p-2 rounded-lg border border-slate-200 text-sm bg-white"
+                  >
+                      <option value="">Seleccionar propiedad...</option>
+                      {propertyOptions.map(p => (
+                          <option key={p.id} value={p.id}>{p.title}</option>
+                      ))}
+                  </select>
+              </div>
+            )}
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Nueva Cita</h3>
+            
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Visitante</label>
+              <div className="relative">
+                <Input
+                  value={guestName}
+                  onChange={(e) => {
+                    setGuestName(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  placeholder="Nombre completo"
+                  className="bg-white border-slate-200"
+                />
+                {leadOptions && showSuggestions && guestName.length > 2 && (
+                  <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl animate-in fade-in zoom-in-95">
+                    {leadOptions
+                      .filter((l) => l.name.toLowerCase().includes(guestName.toLowerCase()))
+                      .map((l) => (
+                        <button
+                          key={l.id}
+                          type="button"
+                          onMouseDown={() => {
+                            setGuestName(l.name);
+                            setSelectedLeadId(l.id);
+                            setPhone(l.phone ?? "");
+                            setEmail(l.email ?? "");
+                            setShowSuggestions(false);
+                          }}
+                          className="flex w-full items-center justify-between px-4 py-3 text-sm hover:bg-slate-50 transition-colors border-b last:border-0 border-slate-50"
+                        >
+                          <span className="font-semibold text-slate-700">{l.name}</span>
+                          <span className="text-[10px] text-slate-400">{l.phone || l.email}</span>
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Teléfono</label>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="WhatsApp" className="bg-white border-slate-200" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Fecha y Hora</label>
+                <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="bg-white border-slate-200" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Notas u Observaciones</label>
+              <Textarea 
+                value={notes} 
+                onChange={(e) => setNotes(e.target.value)} 
+                placeholder="Ej: Trae seña, viene con arquitecto..." 
+                className="bg-white border-slate-200 min-h-[80px]"
               />
-
-              {leadOptions && leadOptions.length && showSuggestions ? (
-                <div className="absolute z-20 mt-1 max-h-44 w-full overflow-auto rounded-md border border-slate-800 bg-black shadow-lg">
-                  {leadOptions
-                    .filter((l) => l.name.toLowerCase().includes((guestName || "").toLowerCase()))
-                    .map((l) => (
-                      <button
-                        key={l.id}
-                        type="button"
-                        onMouseDown={() => {
-                          setGuestName(l.name);
-                          setSelectedLeadId(l.id);
-                          setPhone(l.phone ?? "");
-                          setEmail(l.email ?? "");
-                          if (!notes.trim() && (l.phone || l.email)) {
-                            const parts: string[] = [];
-                            if (l.phone) parts.push(`Tel: ${l.phone}`);
-                            if (l.email) parts.push(`Email: ${l.email}`);
-                            setNotes(parts.join(" • "));
-                          }
-                          setShowSuggestions(false);
-                        }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-slate-900"
-                      >
-                        <div className="flex items-center justify-between text-white">
-                          <div className="truncate">{l.name}</div>
-                          <div className="text-xs text-slate-300">{l.phone ?? l.email}</div>
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              ) : null}
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Contacto</label>
-            <div className="flex gap-2">
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono" className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200" />
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200" />
-            </div>
-          </div>
+            {error && <p className="text-xs text-red-500 font-medium px-1">{error}</p>}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Fecha y hora</label>
-            <Input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} className="h-11 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200" />
-          </div>
-
-          <div className="flex items-end">
-            <Button type="submit" className="w-full bg-blue-600 text-white hover:bg-blue-700">
-              Agendar
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 py-6 rounded-xl">
+              <Plus className="mr-2 h-4 w-4" />
+              Confirmar Visita
             </Button>
-          </div>
+          </form>
+        </div>
 
-          <div className="md:col-span-3">
-            <label className="text-sm font-medium text-slate-700">Notas</label>
-            <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Agregar observaciones o instrucciones" className="mt-2 min-h-24 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-200" />
-          </div>
-        </form>
-
-        {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
-
-        <div className="mt-8">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Visitas agendadas</h3>
-
+        {/* Lista de Visitas (Timeline) */}
+        <div className="xl:col-span-2 space-y-4">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest px-2">Cronograma de Visitas</h3>
+          
           {sortedVisits.length === 0 ? (
-            <div className="mt-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-              Todavía no hay visitas agendadas para este registro.
+            <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/30">
+                <CalendarDays className="h-10 w-10 text-slate-200 mb-2" />
+                <p className="text-sm text-slate-400">No hay visitas programadas</p>
             </div>
           ) : (
-            <div className="mt-3 space-y-3">
-              {sortedVisits.map((visit) => (
-                  <div key={visit.id} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="rounded-full bg-white p-2 text-slate-600">
-                      <Clock3 className="h-4 w-4" />
+            <div className="grid gap-3">
+              {sortedVisits.map((visit) => {
+                const dateInfo = formatVisitDate(visit.scheduledAt);
+                return (
+                  <div key={visit.id} className="group relative flex items-center gap-4 p-4 rounded-2xl border border-slate-100 bg-white hover:border-blue-200 hover:shadow-md transition-all">
+                    {/* Indicador de Fecha */}
+                    <div className="flex flex-col items-center justify-center min-w-[60px] py-2 px-1 bg-slate-50 rounded-xl border border-slate-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 group-hover:text-blue-400">{dateInfo.day}</span>
+                        <span className="text-lg font-black text-slate-700 group-hover:text-blue-700">{dateInfo.time}</span>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-slate-900">{visit.leadName || "Visitante"}</p>
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
-                            {visit.status === "scheduled" ? "Programada" : visit.status}
-                          </span>
+
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <p className="font-bold text-slate-900 truncate">{visit.leadName}</p>
+                            <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-none text-[10px] px-2 py-0">
+                                Programada
+                            </Badge>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {onDelete ? (
-                            <>
-                              <Button variant="ghost" size="sm" onClick={() => setDeletingVisitId(visit.id)} className="text-rose-600">
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                              <Dialog open={!!deletingVisitId} onOpenChange={(open) => { if (!open) setDeletingVisitId(null); }}>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Confirmar eliminación</DialogTitle>
-                                    <DialogDescription>¿Querés eliminar esta visita? Esta acción no se puede deshacer.</DialogDescription>
-                                  </DialogHeader>
-                                  <DialogFooter>
-                                    <Button variant="outline" onClick={() => setDeletingVisitId(null)}>Cancelar</Button>
-                                    <Button
-                                      className="ml-2 bg-rose-600 text-white hover:bg-rose-700"
-                                      onClick={() => {
-                                        if (deletingVisitId) {
-                                          onDelete(deletingVisitId);
-                                          toast.success("Visita eliminada");
-                                        }
-                                        setDeletingVisitId(null);
-                                      }}
-                                    >
-                                      Eliminar
-                                    </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-                            </>
-                          ) : null}
+                        <div className="flex items-center gap-4 text-xs text-slate-400">
+                            <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {visit.phone || 'N/A'}</span>
+                            <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {visit.email || 'N/A'}</span>
                         </div>
-                      </div>
-                      <p className="mt-1 text-sm text-slate-600">{formatVisitDate(visit.scheduledAt)}</p>
-                      {visit.notes ? <p className="mt-2 text-sm text-slate-500">{visit.notes}</p> : null}
+                        {visit.notes && (
+                            <div className="mt-2 flex items-start gap-1.5 p-2 bg-amber-50/50 rounded-lg border border-amber-100/50">
+                                <StickyNote className="h-3 w-3 text-amber-500 mt-0.5" />
+                                <p className="text-[11px] text-amber-700 line-clamp-2">{visit.notes}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Acciones */}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setDeletingVisitId(visit.id)}
+                            className="text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Dialog de Eliminación */}
+      <Dialog open={!!deletingVisitId} onOpenChange={(open) => !open && setDeletingVisitId(null)}>
+        <DialogContent className="rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>¿Eliminar esta visita?</DialogTitle>
+            <DialogDescription>
+              Se cancelará la cita agendada. Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeletingVisitId(null)} className="rounded-xl">Cancelar</Button>
+            <Button
+              className="bg-red-600 text-white hover:bg-red-700 rounded-xl"
+              onClick={() => {
+                if (deletingVisitId) {
+                  onDelete?.(deletingVisitId);
+                  toast.success("Visita cancelada");
+                }
+                setDeletingVisitId(null);
+              }}
+            >
+              Sí, eliminar cita
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

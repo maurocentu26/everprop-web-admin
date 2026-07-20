@@ -1,65 +1,152 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
-import { Phone, Mail, PhoneOutgoing } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { leads as sampleLeads, properties as sampleProperties, type Lead } from "@/data/admin-sample";
 import CardLead from "@/components/admin/CardLead";
 import { loadLeadList, saveLeadList } from "@/lib/admin-storage";
+import {
+  type UniqueIdentifier,
+  DndContext,
+  pointerWithin,
+  DragOverlay,
+  type DragEndEvent,
+  type DragStartEvent,
+  type DragOverEvent,
+  TouchSensor,
+  MouseSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+} from "@dnd-kit/core";
+import { 
+  SortableContext, 
+  useSortable, 
+  verticalListSortingStrategy 
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
 
-type Stage = "new" | "contacted" | "visiting" | "negotiation" | "closing";
+// --- Tipos y Constantes ---
+type Stage = "new" | "contacted" | "visiting" | "closing";
 
-const STAGE_ORDER: Stage[] = ["new", "contacted", "visiting", "negotiation", "closing"];
+const STAGE_ORDER: Stage[] = ["new", "contacted", "visiting", "closing"];
 
 const STAGE_LABELS: Record<Stage, string> = {
   new: "Nuevo",
   contacted: "Contactado",
   visiting: "Visitando",
-  negotiation: "Negociación",
   closing: "Cerrando",
 };
 
-function ClientFormattedDate({ iso }: { iso: string }) {
-  const [text, setText] = useState("");
+// --- Sub-componente: Columna ---
+function KanbanColumn({ 
+  stage, 
+  items, 
+  children, 
+  isHighlighted 
+}: { 
+  stage: Stage; 
+  items: string[]; 
+  children: ReactNode;
+  isHighlighted: boolean;
+}) {
+  const { setNodeRef } = useDroppable({ id: stage });
 
-  useEffect(() => {
-    let mounted = true;
-    try {
-      const id = setTimeout(() => {
-        if (mounted) setText(new Date(iso).toLocaleString());
-      }, 0);
-      return () => {
-        mounted = false;
-        clearTimeout(id);
-      };
-    } catch (e) {
-      if (mounted) setText(iso);
-    }
-  }, [iso]);
-
-  return <div className="text-xs text-slate-500">{text}</div>;
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex flex-col rounded-xl border-2 p-4 transition-all duration-200",
+        isHighlighted
+          ? "border-blue-500 bg-blue-50/50 ring-4 ring-blue-500/10 shadow-lg scale-[1.01]"
+          : "border-slate-200 bg-white shadow-sm"
+      )}
+    >
+      <h3 className="mb-4 flex items-center justify-between text-sm font-bold uppercase tracking-wider text-slate-600">
+        <span className="flex items-center gap-2">
+          <span className={cn(
+            "h-2 w-2 rounded-full",
+            stage === 'new' ? "bg-slate-400" : 
+            stage === 'contacted' ? "bg-blue-500" : 
+            stage === 'visiting' ? "bg-amber-500" : "bg-emerald-500"
+          )} />
+          {STAGE_LABELS[stage]}
+        </span>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
+          {items.length}
+        </span>
+      </h3>
+      
+      <SortableContext items={items} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-1 flex-col gap-3 min-h-37.5">
+          {children}
+        </div>
+      </SortableContext>
+    </div>
+  );
 }
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+// --- Sub-componente: Tarjeta Sorteable ---
+function KanbanCard({ lead, isActive }: { lead: Lead; isActive: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  // 1. Obtenemos los datos de las propiedades de forma segura
+  const leadProperties = useMemo(() => {
+    return lead.propertyIds
+      .map((pid) => sampleProperties.find((p) => p.id === pid))
+      .filter((p): p is typeof sampleProperties[0] => p !== undefined);
+  }, [lead.propertyIds]);
+
+  return (
+    <div ref={setNodeRef} style={style} className={cn(isActive && "z-10")}>
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+        <CardLead
+          className="hover:border-blue-400 hover:shadow-md transition-shadow"
+          id={lead.id}
+          name={lead.name}
+          phone={lead.phone}
+          email={lead.email}
+          origin={lead.origin}
+          // Pasamos el array completo de propiedades procesadas
+          properties={leadProperties.map(p => ({
+            title: p.title,
+            bedrooms: p.bedrooms,
+            price: p.price,
+            currency: p.currency,
+            operation: p.operation
+          }))}
+          lastActivity={lead.lastActivity}
+        />
+      </div>
+    </div>
+  );
 }
 
-function formatPrice(value: number, currency: string) {
-  try {
-    const locale = currency === 'USD' ? 'en-US' : 'es-AR';
-    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value);
-  } catch (e) {
-    return `${value}`;
-  }
-}
-
+// --- Componente Principal ---
 export default function LeadKanban({ companyId = "c1" }: { companyId?: string }) {
-  const [leads, setLeads] = useState(() => sampleLeads.filter((l) => l.companyId === companyId));
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [activeDragId, setActiveDragId] = useState<UniqueIdentifier | null>(null);
+  const [overStageId, setOverStageId] = useState<Stage | null>(null);
+
+  // Sensores optimizados para Mobile y Desktop
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250, // Presión larga para permitir scroll
+        tolerance: 8,
+      },
+    })
+  );
 
   useEffect(() => {
     setLeads(loadLeadList(sampleLeads, companyId));
@@ -71,60 +158,122 @@ export default function LeadKanban({ companyId = "c1" }: { companyId?: string })
     saveLeadList(leads);
   }, [hydrated, leads]);
 
-  function onDragStart(e: React.DragEvent, leadId: string) {
-    e.dataTransfer.setData("text/plain", leadId);
-    e.dataTransfer.effectAllowed = "move";
-  }
+  // Auxiliar para encontrar el stage de cualquier ID (Lead o Columna)
+  const findStage = (id: UniqueIdentifier): Stage | null => {
+    if (STAGE_ORDER.includes(id as Stage)) return id as Stage;
+    const lead = leads.find((l) => l.id === id);
+    return lead ? lead.stage : null;
+  };
 
-  function onDrop(e: React.DragEvent, stage: Stage) {
-    e.preventDefault();
-    const id = e.dataTransfer.getData("text/plain");
-    if (!id) return;
-    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, stage } : l)));
-  }
+  // Handlers de Arrastre
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id);
+    setOverStageId(findStage(event.active.id));
+  };
 
-  function onDragOver(e: React.DragEvent) {
-    e.preventDefault();
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    if (!over) {
+      setOverStageId(null);
+      return;
+    }
+    const stage = findStage(over.id);
+    setOverStageId(stage);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    setActiveDragId(null);
+    setOverStageId(null);
+
+    if (!over) return;
+
+    const leadId = String(active.id);
+    const targetStage = findStage(over.id);
+
+    if (!targetStage) return;
+
+    setLeads((prev) => 
+      prev.map((lead) => (lead.id === leadId ? { ...lead, stage: targetStage } : lead))
+    );
+  };
+
+  const activeLead = leads.find((l) => l.id === activeDragId) ?? null;
+
+  // Renderizado de carga (Hydration Safety)
+  if (!hydrated) {
+    return (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {STAGE_ORDER.map((s) => (
+          <div key={s} className="h-64 animate-pulse rounded-xl bg-slate-100" />
+        ))}
+      </div>
+    );
   }
 
   return (
-    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-      {STAGE_ORDER.map((stage) => (
-        <div
-          key={stage}
-          onDrop={(e) => onDrop(e as React.DragEvent, stage)}
-          onDragOver={onDragOver}
-          className="rounded-lg border border-slate-200 bg-white p-4"
-        >
-          <h3 className="text-sm font-semibold text-slate-700 flex items-center justify-between">
-            <span>{STAGE_LABELS[stage]}</span>
-            <span className="text-xs text-slate-400">{leads.filter(l => l.stage === stage).length}</span>
-          </h3>
+    <DndContext
+      id="everprop-kanban"
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {STAGE_ORDER.map((stage) => {
+          const stageLeads = leads.filter((l) => l.stage === stage);
+          return (
+            <KanbanColumn 
+              key={stage} 
+              stage={stage} 
+              items={stageLeads.map((l) => l.id)}
+              isHighlighted={overStageId === stage}
+            >
+              {stageLeads.map((lead) => (
+                <KanbanCard 
+                  key={lead.id} 
+                  lead={lead} 
+                  isActive={activeDragId === lead.id} 
+                />
+              ))}
+            </KanbanColumn>
+          );
+        })}
+      </div>
 
-          <div className="mt-3 space-y-3 min-h-20">
-            {leads
-              .filter(l => l.stage === stage)
-              .map((l) => {
-                const prop = sampleProperties.find(p => p.id === l.propertyId);
-                return (
-                  <CardLead
-                    className="hover:drop-shadow-xl hover:border hover:border-accent hover:cursor-pointer"
-                    key={l.id}
-                    id={l.id}
-                    name={l.name}
-                    phone={l.phone}
-                    email={l.email}
-                    origin={l.origin}
-                    property={prop ? { title: prop.title, bedrooms: prop.bedrooms, price: prop.price, currency: prop.currency, operation: prop.operation } : undefined}
-                    lastActivity={l.lastActivity}
-                    draggable
-                    onDragStart={onDragStart}
-                  />
-                );
-              })}
+      {/* Overlay para el efecto visual flotante */}
+      <DragOverlay dropAnimation={null} zIndex={1000}>
+        {activeLead ? (
+          <div className="relative pointer-events-none">
+            {/* Backdrop oscuro que pedías */}
+            <div className="fixed inset-0 -z-10 bg-slate-950/40 backdrop-blur-sm" />
+            
+            <div className="scale-105 rotate-2 shadow-2xl opacity-95">
+              <CardLead
+                className="border-2 border-blue-500 bg-white"
+                id={activeLead.id}
+                name={activeLead.name}
+                phone={activeLead.phone}
+                email={activeLead.email}
+                origin={activeLead.origin}
+                properties={activeLead.propertyIds.map((pid) => {
+                  const prop = sampleProperties.find((p) => p.id === pid);
+                  return prop ? { 
+                    title: prop.title, 
+                    bedrooms: prop.bedrooms, 
+                    price: prop.price, 
+                    currency: prop.currency, 
+                    operation: prop.operation 
+                  } : undefined;
+                }).filter(Boolean) as any}
+                lastActivity={activeLead.lastActivity}
+              />
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }

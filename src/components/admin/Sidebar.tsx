@@ -3,7 +3,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Building2, Users, CalendarDays, Settings, Command, ChevronRight, Plus } from "lucide-react";
+import { Home, Building2, Users, CalendarDays, Settings, Command, ChevronRight, Plus, Download } from "lucide-react";
 
 import {
   Sidebar,
@@ -74,7 +74,7 @@ export default function AppSidebar() {
     );
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -94,6 +94,41 @@ export default function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup className="md:hidden border-b border-white/10 pb-4 mb-2">
+          <SidebarGroupLabel className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+            Acciones Rápidas
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-2 px-1 pt-2">
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
+                    render={<Link href="/admin/leads/new" />}
+                  >
+                    <Plus className="size-4" />
+                    <span>Nuevo Lead</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    className="bg-slate-800 text-white hover:bg-slate-700 hover:text-white"
+                    render={<Link href="/admin/properties/new" />}
+                  >
+                    <Plus className="size-4" />
+                    <span>Nueva Propiedad</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton className="text-slate-300">
+                    <Download className="size-4" />
+                    <span>Exportar Datos</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel className="text-white">OPCIONES</SidebarGroupLabel>
           <SidebarGroupContent>

@@ -71,19 +71,77 @@ export default function AdminNavbar({
   }
 
   return (
-    <header className={cn("flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3", className)}>
-      <div className="flex items-center gap-3">
-        <SidebarTrigger />
-        <div className="flex items-center gap-2 rounded-md bg-white px-3 py-1 text-sm font-medium border text-black border-gray-200">
-          <div className="h-7 w-7 rounded-sm bg-blue-600 text-xs font-bold text-white flex items-center justify-center">IA</div>
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-400">Empresa</span>
-            {companyName}
+    <header className={cn("z-30 flex flex-col gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-4", className)}>
+      <div className="flex items-center justify-between gap-3">
+        {/* IZQUIERDA: Sidebar + Empresa */}
+        <div className="flex min-w-0 items-center gap-3">
+          <SidebarTrigger />
+          <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1 text-sm font-medium text-black">
+            <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-blue-600 text-xs font-bold text-white">IA</div>
+            <div className="flex flex-col max-w-25 sm:max-w-none">
+              <span className="text-[10px] leading-none text-gray-400 uppercase font-bold">Empresa</span>
+              <span className="truncate leading-tight">{companyName}</span>
+            </div>
           </div>
+        </div>
+
+        {/* DERECHA: Acciones */}
+        <div className="flex items-center justify-end gap-2">
+          {/* BOTONES: Ahora ocultos en móvil, aparecen desde 'md' (768px) hacia arriba */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="hidden md:inline-flex items-center gap-2 hover:text-white"
+          >
+            <Download className="h-4 w-4" />
+            Exportar
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden md:inline-flex items-center gap-2 hover:text-white"
+            onClick={() => router.push("/admin/properties/new")}
+          >
+            <Plus className="h-4 w-4" />
+            Propiedad
+          </Button>
+
+          <Button
+            className="hidden md:inline-flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-400"
+            size="sm"
+            onClick={() => router.push("/admin/leads/new")}
+          >
+            <Plus className="h-4 w-4" />
+            Lead
+          </Button>
+
+          {/* Iconos de acceso rápido que se quedan en móvil */}
+          <Button variant="ghost" size="sm" className="inline-flex items-center gap-2 rounded-full h-9 w-9" onClick={() => setBellOpen(v => !v)}>
+            <Bell className="h-4 w-4" />
+          </Button>
+
+          <DropdownMenu
+            align="right"
+            trigger={
+              <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 md:px-3 md:py-1 text-sm font-medium text-slate-700">
+                <Avatar className="h-7 w-7 md:h-8 md:w-8">
+                  <AvatarFallback className="text-[10px]">
+                    {userName.split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:inline">{userName}</span>
+              </button>
+            }
+            items={[
+              { label: "Perfil", onClick: () => console.log("Perfil") },
+              { label: "Cerrar sesión", onClick: () => console.log("Cerrar sesión") },
+            ]}
+          />
         </div>
       </div>
 
-      <div className="relative w-full max-w-3xl">
+      <div className="relative w-full">
         <InputGroup className="p-2">
           <InputGroupInput
             value={searchQuery}
@@ -142,52 +200,6 @@ export default function AdminNavbar({
             )}
           </div>
         )}
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" className="inline-flex items-center gap-2 hover:text-white">
-          <Download className="h-4 w-4" />
-          Exportar
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="inline-flex items-center gap-2 hover:text-white"
-          onClick={() => router.push("/admin/properties/new")}
-        >
-          <Plus className="h-4 w-4" />
-          Nueva propiedad
-        </Button>
-
-        <Button
-          className="inline-flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-400"
-          size="sm"
-          onClick={() => router.push("/admin/leads/new")}
-        >
-          <Plus className="h-4 w-4" />
-          Nuevo lead
-        </Button>
-
-        <Button variant="ghost" size="sm" className="inline-flex items-center gap-2 rounded-full" onClick={() => setBellOpen(v => !v)}>
-          <Bell className="h-4 w-4" />
-        </Button>
-
-        <DropdownMenu
-          align="right"
-          trigger={
-            <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700">
-              <Avatar size="sm">
-                <AvatarFallback>{userName.split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <span className="hidden sm:inline">{userName}</span>
-            </button>
-          }
-          items={[
-            { label: "Perfil", onClick: () => console.log("Perfil") },
-            { label: "Cerrar sesión", onClick: () => console.log("Cerrar sesión") },
-          ]}
-        />
       </div>
     </header>
   );
