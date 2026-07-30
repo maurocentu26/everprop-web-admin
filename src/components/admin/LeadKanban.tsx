@@ -27,14 +27,15 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 
 // --- Tipos y Constantes ---
-type Stage = "new" | "contacted" | "visiting" | "closing";
+type Stage = "new" | "contacted" | "visiting" | "negotiation" | "closing";
 
-const STAGE_ORDER: Stage[] = ["new", "contacted", "visiting", "closing"];
+const STAGE_ORDER: Stage[] = ["new", "contacted", "visiting", "negotiation", "closing"];
 
 const STAGE_LABELS: Record<Stage, string> = {
   new: "Nuevo",
   contacted: "Contactado",
   visiting: "Visitando",
+  negotiation: "Negociación",
   closing: "Cerrando",
 };
 
