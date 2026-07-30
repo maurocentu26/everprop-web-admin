@@ -41,7 +41,7 @@ export type Lead = {
   name: string;
   origin: string;
   propertyIds: string[]; 
-  stage: 'new' | 'contacted' | 'visiting' | 'closing';
+  stage: 'new' | 'contacted' | 'visiting' | 'negotiation' | 'closing';
   lastActivity: string;
   phone?: string;
   email?: string;
@@ -303,4 +303,6 @@ export const leads: Lead[] = [
   },
 ];
 
-export default { companies, properties, leads };
+const adminSample = { companies, properties, leads };
+
+export default adminSample;

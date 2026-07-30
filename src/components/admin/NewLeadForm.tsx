@@ -96,7 +96,7 @@ export function NewLeadForm({ companyId = "c1" }: Props) {
       companyId,
       name: trimmedName,
       origin: data.origin,
-      propertyId: data.propertyId || undefined,
+      propertyIds: data.propertyId ? [data.propertyId] : [],
       stage: data.stage,
       lastActivity: new Date().toISOString(),
       phone: phone || undefined,

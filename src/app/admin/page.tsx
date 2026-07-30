@@ -32,7 +32,6 @@ export default function AdminPage() {
 
         <div className="mt-4">
           {/* Client-side Kanban */}
-          {/* @ts-ignore Server Component import in client boundary is fine because LeadKanban is client */}
           <LeadKanban />
         </div>
       </section>
