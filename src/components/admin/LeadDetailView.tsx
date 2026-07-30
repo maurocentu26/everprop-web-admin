@@ -69,21 +69,55 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
   }
 
   // --- Lógica de Visitas ---
-  function handleScheduleVisit(visit: Visit) {
-    if (!lead) return;
-    // Aseguramos que la propiedad de la visita se sume a intereses si no estaba
-    const propId = visit.propertyId;
-    const currentIds = lead.propertyIds || [];
-    const updatedIds = (propId && !currentIds.includes(propId)) ? [...currentIds, propId] : currentIds;
+  // Dentro de LeadDetailView.tsx
 
-    const nextLead: Lead = {
-      ...lead,
-      propertyIds: updatedIds,
-      visits: [...(lead.visits ?? []), visit],
-      lastActivity: new Date().toISOString()
-    };
-    updateLeadData(nextLead);
+function handleScheduleVisit(visit: Visit) {
+  if (!lead) return;
+
+  // 1. Aseguramos que la visita tenga el ID del lead actual (por si el manager no lo tomó)
+  const finalVisit: Visit = {
+    ...visit,
+    leadId: lead.id,
+    leadName: lead.name
+  };
+
+  // 2. Actualizar el LEAD (intereses y visitas)
+  const propId = visit.propertyId;
+  const currentIds = lead.propertyIds || [];
+  const updatedIds = (propId && !currentIds.includes(propId)) ? [...currentIds, propId] : currentIds;
+
+  const nextLead: Lead = {
+    ...lead,
+    propertyIds: updatedIds,
+    visits: [...(lead.visits ?? []), finalVisit],
+    lastActivity: new Date().toISOString()
+  };
+
+  // 3. ¡ESTO ES LO QUE FALTABA!: Actualizar la PROPIEDAD
+  let nextProperties = allProperties;
+  if (propId) {
+    const propertyToUpdate = allProperties.find(p => p.id === propId);
+    if (propertyToUpdate) {
+      const updatedProp: Property = {
+        ...propertyToUpdate,
+        visits: [...(propertyToUpdate.visits ?? []), finalVisit]
+      };
+      nextProperties = allProperties.map(p => p.id === propId ? updatedProp : p);
+    }
   }
+
+  // 4. Guardar todo
+  const nextLeads = allLeads.map((l) => (l.id === nextLead.id ? nextLead : l));
+  
+  setLead(nextLead);
+  setAllLeads(nextLeads);
+  setAllProperties(nextProperties); // Actualizamos estado local de propiedades
+
+  saveLeadList(nextLeads);
+  savePropertyList(nextProperties); // Guardamos en Storage las propiedades actualizadas
+
+  toast.success("Visita agendada y sincronizada con la propiedad");
+}
 
   // Filtro de búsqueda de propiedades para el modal
   const filteredAvailableProps = useMemo(() => {
@@ -157,10 +191,8 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
                     
                     {/* MODAL PARA VINCULAR */}
                     <Dialog open={isLinking} onOpenChange={setIsLinking}>
-                        <DialogTrigger>
-                            <DialogTrigger className="h-8 w-8 rounded-full border border-slate-200 bg-white hover:bg-blue-50 flex items-center justify-center">
-                                <Plus className="h-4 w-4" />
-                            </DialogTrigger>
+                        <DialogTrigger className="h-8 w-8 rounded-full border border-slate-200 bg-white hover:bg-blue-50 flex items-center justify-center">
+                            <Plus className="h-4 w-4"/>
                         </DialogTrigger>
                         <DialogContent className="rounded-3xl">
                             <DialogHeader>
