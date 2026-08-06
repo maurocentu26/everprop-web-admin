@@ -1,49 +1,156 @@
-// src/app/admin/leads/page.tsx
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
 import LeadTable from "@/components/admin/LeadTable";
 import { Button } from "@/components/ui/button";
-import { Download, Plus, Filter } from "lucide-react";
+import { Download, Plus, Filter, Search } from "lucide-react";
 import Link from "next/link";
+import { type Lead, leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
+import { loadLeadList } from "@/lib/admin-storage";
+import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
+import { cn } from "@/lib/utils";
 
 export default function AllLeadsPage() {
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeStage, setActiveStage] = useState<"all" | "new" | "process" | "closed">("all");
+  const [assetType, setAssetType] = useState<"all" | "lote" | "departamento" | "comercial" | "tradicional">("all");
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setAllLeads(loadLeadList(sampleLeads, "c1"));
+    setIsLoaded(true);
+  }, []);
+
+  const filteredLeads = useMemo(() => {
+    let filtered = allLeads;
+    const query = searchQuery.toLowerCase().trim();
+
+    // 1. Search Query
+    if (query) {
+      filtered = filtered.filter(l => {
+        const matchesName = l.name.toLowerCase().includes(query);
+        const matchesEmail = l.email?.toLowerCase().includes(query);
+        const matchesPhone = l.phone?.includes(query);
+        const linkedProps = l.propertyIds.map(pid => sampleProperties.find(p => p.id === pid)?.title.toLowerCase() || "");
+        const matchesProp = linkedProps.some(title => title.includes(query));
+        
+        return matchesName || matchesEmail || matchesPhone || matchesProp;
+      });
+    }
+
+    // 2. Stage Filter
+    if (activeStage !== "all") {
+      filtered = filtered.filter(l => {
+        if (activeStage === "new") return l.stage === "new";
+        if (activeStage === "process") return ["contacted", "visiting", "negotiation"].includes(l.stage);
+        if (activeStage === "closed") return l.stage === "closing";
+        return true;
+      });
+    }
+
+    // 3. Asset Type Filter
+    if (assetType !== "all") {
+      filtered = filtered.filter(l => {
+        const leadProps = l.propertyIds.map(pid => sampleProperties.find(p => p.id === pid));
+        if (assetType === "lote") return leadProps.some(p => p?.propertyType === "Lote");
+        if (assetType === "departamento") return leadProps.some(p => p?.propertyType === "Departamento");
+        if (assetType === "comercial") return leadProps.some(p => p?.propertyType === "Local" || p?.propertyType === "Cochera");
+        if (assetType === "tradicional") return leadProps.some(p => p?.propertyType === "Casa" || (p?.propertyType === "Departamento" && !p.projectId));
+        return false;
+      });
+    }
+
+    return filtered;
+  }, [allLeads, searchQuery, activeStage, assetType]);
+
+  if (!isLoaded) return <div className="h-96 animate-pulse bg-slate-100 rounded-3xl" />;
+
   return (
     <div className="max-w-[1400px] mx-auto space-y-8 pb-10">
-      {/* Header mejorado */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Leads</h1>
           <p className="mt-1 text-slate-500 text-sm">Gestioná y analizá todos los interesados de la inmobiliaria.</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2 text-slate-600">
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Exportar CSV</span>
-          </Button>
-          <Link href="/admin/leads/new">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-                <Plus className="h-4 w-4" />
-                Nuevo Lead
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <InputGroup className="w-full sm:w-64 bg-white border-slate-200 shadow-sm rounded-xl">
+            <InputGroupAddon><Search className="h-4 w-4 text-slate-400" /></InputGroupAddon>
+            <InputGroupInput 
+              placeholder="Buscar lead, teléfono o lote..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="border-none focus-visible:ring-0 text-sm"
+            />
+          </InputGroup>
+          
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" className="gap-2 text-slate-600 flex-1 sm:flex-none">
+              <Download className="h-4 w-4" />
+              <span className="hidden xl:inline">Exportar</span>
             </Button>
-          </Link>
+            <Link href="/admin/leads/new" className="flex-1 sm:flex-none">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 w-full">
+                  <Plus className="h-4 w-4" />
+                  Nuevo Lead
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Filtros rápidos (Opcional pero recomendado para QA Visual) */}
-      <div className="flex items-center gap-2 pb-2 overflow-x-auto">
-        <Button variant="secondary" size="sm" className="rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100">Todos</Button>
-        <Button variant="ghost" size="sm" className="rounded-full text-slate-500">Nuevos</Button>
-        <Button variant="ghost" size="sm" className="rounded-full text-slate-500">En proceso</Button>
-        <Button variant="ghost" size="sm" className="rounded-full text-slate-500">Cerrados</Button>
-        <div className="ml-auto">
-            <Button variant="ghost" size="sm" className="text-slate-400 gap-2">
-                <Filter className="h-3 w-3" />
-                Filtros avanzados
-            </Button>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-2">
+        {/* Status Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto p-1 bg-slate-100 rounded-2xl">
+          {[
+            { id: "all", label: "Todos" },
+            { id: "new", label: "Nuevos" },
+            { id: "process", label: "En proceso" },
+            { id: "closed", label: "Cerrados" },
+          ].map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveStage(tab.id as any)}
+              className={cn(
+                "px-4 py-1.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap",
+                activeStage === tab.id ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Asset Type Filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden md:inline-block">Interés en:</span>
+          <select 
+            className="text-sm font-medium border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+            value={assetType}
+            onChange={(e) => setAssetType(e.target.value as any)}
+          >
+            <option value="all">Todos los activos</option>
+            <option value="lote">Loteos</option>
+            <option value="departamento">Edificios (Pozo)</option>
+            <option value="comercial">Comercial (Locales/Cocheras)</option>
+            <option value="tradicional">Inmobiliaria Tradicional</option>
+          </select>
         </div>
       </div>
 
-      {/* El componente de la tabla */}
-      <LeadTable />
+      {/* Table */}
+      <div className="min-h-[500px]">
+        {filteredLeads.length > 0 ? (
+          <LeadTable leads={filteredLeads} />
+        ) : (
+          <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50">
+            <Filter className="h-8 w-8 text-slate-300 mb-3" />
+            <p className="text-slate-500 font-medium">No se encontraron leads con esos filtros.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

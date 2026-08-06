@@ -11,20 +11,7 @@ type Props = {
 };
 
 export default function PropertyList({ properties }: Props) {
-  const [items, setItems] = useState<Property[]>(properties);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setItems(loadPropertyList(sampleProperties, "c1"));
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    savePropertyList(items);
-  }, [hydrated, items]);
-
-  const totalProperties = items.length;
+  const totalProperties = properties.length;
 
   return (
     <div className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -61,7 +48,7 @@ export default function PropertyList({ properties }: Props) {
           </thead>
 
           <tbody>
-            {items.map((property) => (
+            {properties.map((property) => (
               <PropertyCard key={property.id} property={property} />
             ))}
           </tbody>

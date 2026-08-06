@@ -16,8 +16,6 @@
   --accent-foreground: oklch(0.205 0 0);
   --success: #10b981;
   --success-foreground: #ffffff;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.97 0 0);
@@ -31,14 +29,24 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar: oklch(0.208 0.042 265.755); 
+  
+  /* Texto e iconos inactivos: Blanco con ligera transparencia */
+  --sidebar-foreground: oklch(0.985 0 0); 
+  
+  /* Color primario: El azul de acción de EverProp (#3b82f6) */
+  --sidebar-primary: oklch(0.585 0.233 253.029);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Estado ACTIVO: Fondo blanco y texto oscuro  */
+  --sidebar-accent: oklch(1 0 0); 
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+
+  /* Bordes y separadores sutiles */
+  --sidebar-border: oklch(0.322 0.039 263.535);
+  --sidebar-ring: oklch(0.585 0.233 253.029);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
 }
 
 @media (prefers-color-scheme: dark) {

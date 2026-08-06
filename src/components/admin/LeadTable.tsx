@@ -10,7 +10,7 @@ import {
   ArrowUpDown,
   Filter
 } from "lucide-react";
-import { leads as sampleLeads, properties as sampleProperties, type Lead } from "@/data/admin-sample";
+import { properties as sampleProperties, type Lead } from "@/data/admin-sample";
 import  Badge  from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -25,9 +25,8 @@ const STAGE_LABELS: Record<string, { label: string; class: string }> = {
   closing: { label: "Cerrando", class: "bg-emerald-100 text-emerald-700" },
 };
 
-export default function LeadTable() {
+export default function LeadTable({ leads }: { leads: Lead[] }) {
   const router = useRouter();
-  const [leads] = useState<Lead[]>(sampleLeads);
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase();
 
