@@ -7,15 +7,18 @@ type DashboardMode = "agency" | "enterprise";
 interface DashboardModeContextType {
   mode: DashboardMode;
   setMode: (mode: DashboardMode) => void;
+  globalSelectedAgentId: string;
+  setGlobalSelectedAgentId: (id: string) => void;
 }
 
 const DashboardModeContext = createContext<DashboardModeContextType | undefined>(undefined);
 
 export function DashboardModeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<DashboardMode>("enterprise");
+  const [globalSelectedAgentId, setGlobalSelectedAgentId] = useState<string>("all");
 
   return (
-    <DashboardModeContext.Provider value={{ mode, setMode }}>
+    <DashboardModeContext.Provider value={{ mode, setMode, globalSelectedAgentId, setGlobalSelectedAgentId }}>
       {children}
     </DashboardModeContext.Provider>
   );

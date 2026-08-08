@@ -9,10 +9,11 @@ import {
 import type { Lead, Property, Visit } from "@/data/admin-sample";
 import { leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
 import { loadLeadList, loadPropertyList, saveLeadList, savePropertyList } from "@/lib/admin-storage";
-import VisitManager from "@/components/admin/VisitManager";
 import { Button } from "@/components/ui/button";
 import Badge from "@/components/ui/badge";
+import { useCurrentSession } from "@/hooks/use-current-session";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import VisitManager from "@/components/admin/VisitManager";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export default function PropertyDetailView({ propertyId }: Props) {
+  const { isEngineer } = useCurrentSession();
   const [property, setProperty] = useState<Property | null>(null);
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
@@ -191,9 +193,11 @@ export default function PropertyDetailView({ propertyId }: Props) {
             <div className="mt-2 text-4xl font-black text-slate-900">
                 {property.currency} {property.price.toLocaleString('es-AR')}
             </div>
-            <Button className="w-full mt-6 bg-blue-600 hover:bg-blue-700 h-12 rounded-xl text-md font-bold">
-                Agendar Visita
-            </Button>
+            {!isEngineer && (
+              <Button className="w-full mt-6 bg-blue-600 hover:bg-blue-700 h-12 rounded-xl text-md font-bold">
+                  Agendar Visita
+              </Button>
+            )}
           </div>
 
           {/* LISTA DE INTERESADOS (SIDEBAR) */}
@@ -230,19 +234,20 @@ export default function PropertyDetailView({ propertyId }: Props) {
         </div>
       </div>
 
-      {/* COMPONENTE MANAGER (ABABAJO) */}
-      <div className="rounded-[2.5rem] border border-slate-200 bg-white overflow-hidden shadow-sm">
-        <div className="p-8">
-            <VisitManager
-                title="Calendario de Visitas"
-                subtitle="Gestioná quiénes van a ver esta propiedad."
-                visits={property.visits ?? []}
-                onSchedule={handleScheduleVisit}
-                onDelete={handleDeleteVisit}
-                leadOptions={allLeads}
-            />
+      {!isEngineer && (
+        <div className="rounded-[2.5rem] border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div className="p-8">
+              <VisitManager
+                  title="Calendario de Visitas"
+                  subtitle="Gestioná quiénes van a ver esta propiedad."
+                  visits={property.visits ?? []}
+                  onSchedule={handleScheduleVisit}
+                  onDelete={handleDeleteVisit}
+                  leadOptions={allLeads}
+              />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

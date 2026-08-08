@@ -3,15 +3,19 @@
 import { useState, useMemo, useEffect } from "react";
 import PropertyList from "@/components/admin/PropertyList";
 import { Button } from "@/components/ui/button";
-import { Download, Plus, Map, Building2 } from "lucide-react";
+import { Download, Plus, Map, Building2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { type Property, properties as sampleProperties, projects as sampleProjects } from "@/data/admin-sample";
 import { loadPropertyList, loadProjectList } from "@/lib/admin-storage";
 import { cn } from "@/lib/utils";
 import { useDashboardMode } from "@/lib/dashboard-context";
+import { useCurrentSession } from "@/hooks/use-current-session";
 
 export default function AllPropertiesPage() {
   const { mode } = useDashboardMode();
+  const { isAdvisor } = useCurrentSession();
+  // Advisors always see ALL assets (lotes, locales, cocheras, etc.) to show to leads
+  const effectiveMode = isAdvisor ? "enterprise" : mode;
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [projects, setProjects] = useState<typeof sampleProjects>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -98,7 +102,7 @@ export default function AllPropertiesPage() {
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-center">
         
         {/* Project Filter - Only in Enterprise mode */}
-        {mode === "enterprise" && (
+        {effectiveMode === "enterprise" && (
           <>
             <div className="flex items-center gap-3 w-full xl:w-auto">
               <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100">
@@ -144,7 +148,7 @@ export default function AllPropertiesPage() {
 
         <div className="hidden xl:block w-px h-8 bg-slate-200" />
 
-        {/* Type Multi-select */}
+        {/* Type Multi-select & Clear Filters */}
         <div className="flex items-center gap-2 overflow-x-auto w-full xl:w-auto">
           <Building2 className="h-4 w-4 text-slate-400 mr-2 hidden sm:block" />
           {["Lote", "Departamento", "Local", "Cochera", "Casa"].map(type => (
@@ -159,11 +163,26 @@ export default function AllPropertiesPage() {
               {type}
             </button>
           ))}
+
+          {(selectedProjectId !== "all" || activeStatus !== "all" || selectedTypes.length > 0) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedProjectId("all");
+                setActiveStatus("all");
+                setSelectedTypes([]);
+              }}
+              className="text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-semibold gap-1.5 ml-2"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Limpiar
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Content Rendering based on Mode */}
-      {mode === "enterprise" ? (
+      {effectiveMode === "enterprise" ? (
         <div className="space-y-12">
           {Object.entries(groupedProperties.projects).map(([pId, props]) => {
             const proj = projects.find(p => p.id === pId);

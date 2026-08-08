@@ -7,22 +7,28 @@ import {
 } from "lucide-react";
 import type { Lead, Property, Visit } from "@/data/admin-sample";
 import { leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
-import { loadLeadList, loadPropertyList, saveLeadList, savePropertyList } from "@/lib/admin-storage";
+import { loadLeadList, loadPropertyList, saveLeadList, savePropertyList, updateLeadAgent } from "@/lib/admin-storage";
 import VisitManager from "@/components/admin/VisitManager";
+import { useAuth } from "@/lib/auth-context";
+import { MOCK_USERS } from "@/data/auth-sample";
 import { Button } from "@/components/ui/button";
 import  Badge  from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { createNotification } from "@/lib/notifications";
+import FinancingCalculator from "@/components/admin/FinancingCalculator";
 
 export default function LeadDetailView({ leadId }: { leadId: string }) {
+  const { currentUser } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [isLinking, setIsLinking] = useState(false);
   const [searchProperty, setSearchProperty] = useState("");
+  const [pendingAgentId, setPendingAgentId] = useState<string | null>(null);
 
   useEffect(() => {
     const initialLeads = loadLeadList(sampleLeads, "c1");
@@ -69,19 +75,16 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
   }
 
   // --- Lógica de Visitas ---
-  // Dentro de LeadDetailView.tsx
 
 function handleScheduleVisit(visit: Visit) {
   if (!lead) return;
 
-  // 1. Aseguramos que la visita tenga el ID del lead actual (por si el manager no lo tomó)
   const finalVisit: Visit = {
     ...visit,
     leadId: lead.id,
     leadName: lead.name
   };
 
-  // 2. Actualizar el LEAD (intereses y visitas)
   const propId = visit.propertyId;
   const currentIds = lead.propertyIds || [];
   const updatedIds = (propId && !currentIds.includes(propId)) ? [...currentIds, propId] : currentIds;
@@ -93,7 +96,6 @@ function handleScheduleVisit(visit: Visit) {
     lastActivity: new Date().toISOString()
   };
 
-  // 3. ¡ESTO ES LO QUE FALTABA!: Actualizar la PROPIEDAD
   let nextProperties = allProperties;
   if (propId) {
     const propertyToUpdate = allProperties.find(p => p.id === propId);
@@ -106,20 +108,45 @@ function handleScheduleVisit(visit: Visit) {
     }
   }
 
-  // 4. Guardar todo
   const nextLeads = allLeads.map((l) => (l.id === nextLead.id ? nextLead : l));
   
   setLead(nextLead);
   setAllLeads(nextLeads);
-  setAllProperties(nextProperties); // Actualizamos estado local de propiedades
+  setAllProperties(nextProperties);
 
   saveLeadList(nextLeads);
-  savePropertyList(nextProperties); // Guardamos en Storage las propiedades actualizadas
+  savePropertyList(nextProperties);
 
   toast.success("Visita agendada y sincronizada con la propiedad");
 }
 
-  // Filtro de búsqueda de propiedades para el modal
+  function handleReassignAgentConfirmed() {
+    if (!lead || !pendingAgentId) return;
+    const nextLeads = updateLeadAgent(lead.id, pendingAgentId, allLeads);
+    setAllLeads(nextLeads);
+    setLead(nextLeads.find(l => l.id === lead.id) ?? null);
+    
+    try {
+      const channel = new BroadcastChannel("everprop_events");
+      channel.postMessage({
+        type: "LEAD_REASSIGNED",
+        targetAgentId: pendingAgentId,
+        leadName: lead.name
+      });
+      channel.close();
+      
+      createNotification(
+        pendingAgentId, 
+        `Se te ha reasignado el lead "${lead.name}"`
+      );
+    } catch (e) {
+      console.error(e);
+    }
+    
+    setPendingAgentId(null);
+    toast.success("Asesor reasignado");
+  }
+
   const filteredAvailableProps = useMemo(() => {
     return allProperties.filter(p => 
         !lead?.propertyIds.includes(p.id) && 
@@ -131,14 +158,12 @@ function handleScheduleVisit(visit: Visit) {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
-      {/* Botón Volver */}
       <Link href="/admin#leads" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600">
         <ArrowLeft className="h-4 w-4" /> Volver al Pipeline
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Columna Izquierda: Info Personal */}
         <div className="lg:col-span-2 space-y-6">
             <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
                 <div className="flex gap-6 items-start">
@@ -151,6 +176,46 @@ function handleScheduleVisit(visit: Visit) {
                             <Badge variant="default">{lead.origin}</Badge>
                             <Badge className="bg-blue-50 text-blue-700 border-none capitalize">{lead.stage}</Badge>
                         </div>
+                        
+                        {currentUser?.role === "ADMIN" && (
+                          <div className="mt-4 flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100 w-fit">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest ml-1">Asesor Asignado:</span>
+                              <span className="text-sm font-bold text-slate-900">
+                                {lead.agentId ? MOCK_USERS.find(u => u.id === lead.agentId)?.name : "Sin asignar"}
+                              </span>
+                              <Dialog open={!!pendingAgentId} onOpenChange={(open) => { if (!open) setPendingAgentId(null); }}>
+                                <DialogTrigger className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 shadow-sm hover:bg-slate-100 hover:text-slate-900 h-6 text-[10px] ml-2 font-medium" onClick={() => setPendingAgentId(lead.agentId || "none")}>
+                                  Reasignar
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md">
+                                  <DialogHeader>
+                                    <DialogTitle>Reasignar Asesor</DialogTitle>
+                                    <DialogDescription>Seleccioná el nuevo asesor para esta oportunidad de venta.</DialogDescription>
+                                  </DialogHeader>
+                                  <div className="py-4">
+                                    <select
+                                      value={pendingAgentId === "none" ? "" : (pendingAgentId || "")}
+                                      onChange={(e) => setPendingAgentId(e.target.value)}
+                                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                      <option value="" disabled>Seleccionar asesor...</option>
+                                      {MOCK_USERS.filter(u => u.role === "ADVISOR").map(u => (
+                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <DialogFooter className="mt-4 flex gap-2">
+                                    <Button variant="outline" onClick={() => setPendingAgentId(null)}>Cancelar</Button>
+                                    <Button variant="default" className="bg-blue-600 hover:bg-blue-700" onClick={handleReassignAgentConfirmed} disabled={!pendingAgentId || pendingAgentId === "none" || pendingAgentId === lead.agentId}>
+                                      Confirmar Cambio
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          </div>
+                        )}
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-50">
@@ -165,7 +230,18 @@ function handleScheduleVisit(visit: Visit) {
                 </div>
             </div>
 
-            {/* Visit Manager */}
+            {/* ── Simulador de Financiación ── */}
+            {(() => {
+              const primaryProp = allProperties.find(p => p.id === lead.propertyIds[0]);
+              return (
+                <FinancingCalculator
+                  defaultPrice={primaryProp?.price}
+                  defaultCurrency={primaryProp?.currency ?? "USD"}
+                  leadName={lead.name}
+                />
+              );
+            })()}
+
             <div className="rounded-3xl border border-slate-200 bg-white p-8">
                 <VisitManager
                     title="Gestión de Visitas"
@@ -175,7 +251,6 @@ function handleScheduleVisit(visit: Visit) {
                     defaultGuestName={lead.name}
                     defaultPhone={lead.phone}
                     defaultEmail={lead.email}
-                    // IMPORTANTE: Solo dejamos elegir entre las propiedades que le interesan
                     propertyOptions={allProperties.filter(p => lead.propertyIds.includes(p.id))}
                 />
             </div>

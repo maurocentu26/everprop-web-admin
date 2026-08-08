@@ -43,7 +43,7 @@ export const navigationGroups: NavGroup[] = [
     ]
   },
   {
-    label: "Inmobiliaria",
+    label: "Comercializadora",
     items: [
       { 
         title: "Propiedades", 

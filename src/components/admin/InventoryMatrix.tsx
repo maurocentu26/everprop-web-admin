@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import Badge from "@/components/ui/badge";
+import { useCurrentSession } from "@/hooks/use-current-session";
 import { MapPin, Maximize, DollarSign, UserPlus, Info } from "lucide-react";
 import Link from "next/link";
 
@@ -21,6 +22,7 @@ type InventoryMatrixProps = {
 };
 
 export default function InventoryMatrix({ properties, isLoading }: InventoryMatrixProps) {
+  const { isEngineer } = useCurrentSession();
   const [selectedUnit, setSelectedUnit] = useState<Property | null>(null);
 
   // Group properties by sectorName
@@ -184,9 +186,11 @@ export default function InventoryMatrix({ properties, isLoading }: InventoryMatr
 
                 {/* Acciones */}
                 <div className="pt-4 flex flex-col gap-3">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 rounded-xl text-base font-semibold">
-                    <UserPlus className="mr-2 h-5 w-5" /> Vincular Lead (Interesado)
-                  </Button>
+                  {!isEngineer && (
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 rounded-xl text-base font-semibold">
+                      <UserPlus className="mr-2 h-5 w-5" /> Vincular Lead (Interesado)
+                    </Button>
+                  )}
                   
                   <Link href={`/admin/properties/${selectedUnit.id}`} className="w-full">
                     <Button variant="outline" className="w-full h-12 rounded-xl text-slate-700">

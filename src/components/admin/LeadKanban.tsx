@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { leads as sampleLeads, properties as sampleProperties, projects as sampleProjects, type Lead } from "@/data/admin-sample";
 import CardLead from "@/components/admin/CardLead";
 import { loadLeadList, saveLeadList, loadProjectList } from "@/lib/admin-storage";
+import { useCurrentSession } from "@/hooks/use-current-session";
+import { useDashboardMode } from "@/lib/dashboard-context";
 import { KanbanColumn } from "./kanban/KanbanColumn";
 import { KanbanCard } from "./kanban/KanbanCard";
 import { STAGE_ORDER, type Stage } from "./kanban/types";
@@ -39,6 +41,8 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const projects = useMemo(() => loadProjectList(sampleProjects, companyId), [companyId]);
+  const { isAdvisor, isAdmin, user } = useCurrentSession();
+  const { globalSelectedAgentId } = useDashboardMode();
 
   // Sensores optimizados para Mobile y Desktop
   const sensors = useSensors(
@@ -106,10 +110,26 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
 
   const activeLead = leads.find((l) => l.id === activeDragId) ?? null;
 
+  // Reset project filter whenever workspace mode changes (Task 3 Bug Fix)
+  useEffect(() => {
+    if (dashboardMode === "agency") {
+      setSelectedProjectId("all");
+    }
+  }, [dashboardMode]);
+
   // Filtered Leads
   const filteredLeads = useMemo(() => {
     let result = leads;
-    if (selectedProjectId !== "all") {
+    
+    // Strict Filtering
+    if (isAdvisor) {
+      result = result.filter((l) => l.agentId === user?.id);
+    } else if (isAdmin && globalSelectedAgentId !== "all") {
+      result = result.filter((l) => l.agentId === globalSelectedAgentId);
+    }
+    
+    // In Comercializadora (agency) mode, show ALL leads by default, bypassing any project-specific filter
+    if (dashboardMode === "enterprise" && selectedProjectId !== "all") {
       result = result.filter(l => l.projectId === selectedProjectId);
     }
     if (searchQuery.trim()) {
@@ -117,7 +137,7 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
       result = result.filter(l => l.name.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q) || l.phone?.includes(q));
     }
     return result;
-  }, [leads, selectedProjectId, searchQuery]);
+  }, [leads, selectedProjectId, searchQuery, dashboardMode, isAdvisor, isAdmin, user, globalSelectedAgentId]);
 
   // Renderizado de carga (Hydration Safety)
   if (!hydrated) {

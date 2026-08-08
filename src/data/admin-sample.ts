@@ -36,6 +36,7 @@ export type Visit = {
   scheduledAt: string;
   status: "scheduled" | "completed" | "cancelled";
   notes?: string;
+  agentId?: string;
 };
 
 export type Property = {
@@ -79,6 +80,7 @@ export type Lead = {
   phone?: string;
   email?: string;
   visits?: Visit[];
+  agentId?: string;
 };
 
 export const companies: Company[] = [
@@ -212,14 +214,18 @@ const leadNames = [
 ];
 
 const availableOrReservedProps = properties.filter(p => p.status === 'available' || p.status === 'reserved' || !p.status);
-let unassignedProps = [...availableOrReservedProps];
+const unassignedProps = [...availableOrReservedProps];
 
 export const leads: Lead[] = leadNames.map((name, index) => {
   const stages: Lead['stage'][] = ['new', 'contacted', 'visiting', 'negotiation', 'closing'];
-  let stage = stages[index % 5];
+  const stage = stages[index % 5];
+  
+  // Assign agents cyclically to ensure multiple agents get leads (ADVISOR only)
+  const agentIds = ['usr-sales', 'usr-sales-2'];
+  const agentId = agentIds[index % agentIds.length];
   
   const leadId = `l${index + 1}`;
-  let propertyIds: string[] = [];
+  const propertyIds: string[] = [];
   let projectId: string | undefined = undefined;
   
   // Asignar unidades a este lead asegurando que cubrimos el pool de unassignedProps
@@ -248,7 +254,8 @@ export const leads: Lead[] = leadNames.map((name, index) => {
       leadName: name,
       propertyTitle: properties.find(p => p.id === propertyIds[0])?.title,
       scheduledAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * (index % 5)).toISOString(),
-      status: stage === 'visiting' ? 'scheduled' : 'completed'
+      status: stage === 'visiting' ? 'scheduled' : 'completed',
+      agentId
     };
     visits.push(v);
     
@@ -271,7 +278,8 @@ export const leads: Lead[] = leadNames.map((name, index) => {
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * (index + 1)).toISOString(),
     phone: `+54 9 388 4${Math.floor(100000 + Math.random() * 900000)}`,
     email: `${name.split(' ')[0].toLowerCase()}@example.com`,
-    visits
+    visits,
+    agentId
   };
 });
 

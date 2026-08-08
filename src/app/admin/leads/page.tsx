@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import LeadTable from "@/components/admin/LeadTable";
 import { Button } from "@/components/ui/button";
 import { Download, Plus, Filter, Search } from "lucide-react";
@@ -10,7 +11,15 @@ import { loadLeadList } from "@/lib/admin-storage";
 import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 
+import { useDashboardMode } from "@/lib/dashboard-context";
+import { RotateCcw, AlertTriangle } from "lucide-react";
+import { useCurrentSession } from "@/hooks/use-current-session";
+
 export default function AllLeadsPage() {
+  const router = useRouter();
+  const { mode: dashboardMode } = useDashboardMode();
+  const { isEngineer, isAdvisor, user } = useCurrentSession();
+  
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeStage, setActiveStage] = useState<"all" | "new" | "process" | "closed">("all");
@@ -21,6 +30,23 @@ export default function AllLeadsPage() {
     setAllLeads(loadLeadList(sampleLeads, "c1"));
     setIsLoaded(true);
   }, []);
+
+  // Reset filters when switching workspace modes (Task 3 Bug Fix)
+  useEffect(() => {
+    if (dashboardMode === "agency") {
+      setAssetType("all");
+      setActiveStage("all");
+      setSearchQuery("");
+    }
+  }, [dashboardMode]);
+
+  const hasActiveFilters = searchQuery !== "" || activeStage !== "all" || assetType !== "all";
+
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setActiveStage("all");
+    setAssetType("all");
+  };
 
   const filteredLeads = useMemo(() => {
     let filtered = allLeads;
@@ -61,8 +87,23 @@ export default function AllLeadsPage() {
       });
     }
 
+    // 4. Auth Filter
+    if (isAdvisor) {
+      filtered = filtered.filter(l => l.agentId === user?.id);
+    }
+
     return filtered;
-  }, [allLeads, searchQuery, activeStage, assetType]);
+  }, [allLeads, searchQuery, activeStage, assetType, isAdvisor, user]);
+
+  if (isEngineer) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <AlertTriangle className="h-16 w-16 text-red-600 mb-4" />
+        <h2 className="text-2xl font-black text-slate-900">Access Denied</h2>
+        <p className="text-slate-500 mt-2">Los ingenieros no tienen acceso a la base de contactos comerciales.</p>
+      </div>
+    );
+  }
 
   if (!isLoaded) return <div className="h-96 animate-pulse bg-slate-100 rounded-3xl" />;
 
@@ -72,7 +113,7 @@ export default function AllLeadsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Leads</h1>
-          <p className="mt-1 text-slate-500 text-sm">Gestioná y analizá todos los interesados de la inmobiliaria.</p>
+          <p className="mt-1 text-slate-500 text-sm">Gestioná y analizá todos los interesados de la comercializadora.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
@@ -123,20 +164,33 @@ export default function AllLeadsPage() {
           ))}
         </div>
 
-        {/* Asset Type Filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden md:inline-block">Interés en:</span>
-          <select 
-            className="text-sm font-medium border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-            value={assetType}
-            onChange={(e) => setAssetType(e.target.value as any)}
-          >
-            <option value="all">Todos los activos</option>
-            <option value="lote">Loteos</option>
-            <option value="departamento">Edificios (Pozo)</option>
-            <option value="comercial">Comercial (Locales/Cocheras)</option>
-            <option value="tradicional">Inmobiliaria Tradicional</option>
-          </select>
+        {/* Asset Type Filter & Clear Filters */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden md:inline-block">Interés en:</span>
+            <select 
+              className="text-sm font-medium border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              value={assetType}
+              onChange={(e) => setAssetType(e.target.value as any)}
+            >
+              <option value="all">Todos los activos</option>
+              <option value="lote">Loteos</option>
+              <option value="departamento">Edificios (Pozo)</option>
+              <option value="comercial">Comercial (Locales/Cocheras)</option>
+              <option value="tradicional">Inmobiliaria Tradicional</option>
+            </select>
+          </div>
+
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearFilters}
+              className="text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-semibold gap-1.5"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Limpiar filtros
+            </Button>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { 
   SidebarContent, 
   SidebarGroup, 
@@ -14,8 +15,23 @@ import { cn } from "@/lib/utils";
 import { navigationGroups } from "./navigation";
 import { quickActionsConfig } from "./quick-actions";
 import { SidebarNavItem } from "./sidebar-nav-item";
+import { useCurrentSession } from "@/hooks/use-current-session";
 
 export function SidebarNav() {
+  const { isEngineer } = useCurrentSession();
+  
+  const filteredGroups = useMemo(() => {
+    if (isEngineer) {
+      return navigationGroups.map(group => {
+        if (group.label === "Activos Comerciales") {
+           return { ...group, items: group.items.filter(i => i.title !== "Agenda") };
+        }
+        return group;
+      }).filter(g => g.label !== "Comercializadora");
+    }
+    return navigationGroups;
+  }, [isEngineer]);
+
   return (
     <SidebarContent>
       {/* GRUPO: Acciones Rápidas (Visible solo en móvil) */}
@@ -44,7 +60,7 @@ export function SidebarNav() {
       </SidebarGroup>
 
       {/* GRUPOS: Navegación Principal por Unidad de Negocio */}
-      {navigationGroups.map((group) => (
+      {filteredGroups.map((group) => (
         <SidebarGroup key={group.label} className="mb-2">
           <SidebarGroupLabel className="text-slate-500 text-[10px] font-black uppercase tracking-widest px-4">
             {group.label}

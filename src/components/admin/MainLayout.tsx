@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/auth-context";
 
 import { SidebarProvider, SidebarTrigger } from "../ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/Sidebar";
@@ -14,6 +16,24 @@ type Props = {
 export default function MainLayout({ children }: Props) {
     const [collapsed, setCollapsed] = useState(false);
     const pathname = usePathname();
+    const { currentUser } = useAuth();
+
+    useEffect(() => {
+        try {
+            const channel = new BroadcastChannel("everprop_events");
+            channel.onmessage = (event) => {
+                if (event.data?.type === "LEAD_REASSIGNED" && event.data?.targetAgentId === currentUser?.id) {
+                    toast.info(`Nuevo lead asignado: ${event.data.leadName}`, {
+                        position: "top-center",
+                        duration: 5000,
+                    });
+                }
+            };
+            return () => channel.close();
+        } catch (e) {
+            console.error(e);
+        }
+    }, [currentUser?.id]);
 
     useEffect(() => {
         if (pathname !== "/admin") {

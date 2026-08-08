@@ -1,9 +1,9 @@
 import type { Lead, Property, Project } from "@/data/admin-sample";
 
 export const ADMIN_STORAGE_KEYS = {
-  leads: "everprop:leads",
-  properties: "everprop:properties",
-  projects: "everprop:projects",
+  leads: "everprop:leads:v2",
+  properties: "everprop:properties:v2",
+  projects: "everprop:projects:v2",
 } as const;
 
 function readList<T>(key: string): T[] {
@@ -56,6 +56,13 @@ export function appendProjectToStorage(nextProject: Project, seed: Project[], co
   const current = loadProjectList(seed, companyId);
   const next = [...current, nextProject];
   window.localStorage.setItem(ADMIN_STORAGE_KEYS.projects, JSON.stringify(next));
+  return next;
+}
+
+export function updateLeadAgent(leadId: string, agentId: string, seed: Lead[], companyId: string = "c1") {
+  const current = loadLeadList(seed, companyId);
+  const next = current.map(lead => lead.id === leadId ? { ...lead, agentId } : lead);
+  window.localStorage.setItem(ADMIN_STORAGE_KEYS.leads, JSON.stringify(next));
   return next;
 }
 

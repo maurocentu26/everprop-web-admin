@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Map } from "lucide-react";
 import { type Project, type Property } from "@/data/admin-sample";
 import { cn } from "@/lib/utils";
@@ -28,32 +29,33 @@ export default function GlobalInventoryWidget({ inventoryByProject, projects }: 
                   const isReserved = unit.status === 'reserved';
                   
                   return (
-                    <div 
+                    <Link
                       key={unit.id} 
-                      className="group relative cursor-pointer"
+                      href={`/admin/properties/${unit.id}`}
+                      className="group relative cursor-pointer block"
                     >
                       <div className={cn(
-                        "h-8 w-8 rounded-md border flex items-center justify-center text-[10px] font-bold transition-transform hover:scale-110",
-                        isAvailable ? "bg-emerald-100 border-emerald-200 text-emerald-700" :
-                        isReserved ? "bg-amber-100 border-amber-200 text-amber-700" :
-                        "bg-rose-100 border-rose-200 text-rose-700"
+                        "h-9 w-9 rounded-lg border flex items-center justify-center text-[10px] font-bold transition-all hover:scale-115 hover:shadow-md hover:z-20",
+                        isAvailable ? "bg-emerald-100 border-emerald-200 text-emerald-700 hover:bg-emerald-200" :
+                        isReserved ? "bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200" :
+                        "bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200"
                       )}>
                         {unit.unitNumber?.replace(/\D/g, '') || unit.title.slice(0,2)}
                       </div>
                       
                       {/* Tooltip */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 hidden group-hover:block z-50">
-                        <div className="bg-slate-900 text-white text-xs p-3 rounded-xl shadow-xl">
-                          <p className="font-bold mb-1">{unit.unitNumber || unit.title}</p>
-                          <p className="text-slate-300">{unit.sectorName || 'Sin Sector'}</p>
-                          <div className="mt-2 pt-2 border-t border-slate-700 space-y-1">
-                            <p className="flex justify-between"><span>Precio:</span> <strong>{unit.currency} {unit.price}</strong></p>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 hidden group-hover:block z-50 pointer-events-none">
+                        <div className="bg-slate-900 text-white text-xs p-3 rounded-xl shadow-2xl border border-slate-800">
+                          <p className="font-bold mb-0.5">{unit.unitNumber || unit.title}</p>
+                          <p className="text-[10px] text-slate-400">{unit.sectorName || 'Sin Sector'}</p>
+                          <div className="mt-2 pt-2 border-t border-slate-800 space-y-1">
+                            <p className="flex justify-between"><span>Precio:</span> <strong>{unit.currency} {unit.price.toLocaleString('es-AR')}</strong></p>
                             {unit.area_m2 && <p className="flex justify-between"><span>Sup:</span> <strong>{unit.area_m2} m²</strong></p>}
                             <p className="flex justify-between">
                               <span>Estado:</span> 
                               <span className={cn(
-                                isAvailable ? "text-emerald-400" :
-                                isReserved ? "text-amber-400" : "text-rose-400"
+                                isAvailable ? "text-emerald-400 font-bold" :
+                                isReserved ? "text-amber-400 font-bold" : "text-rose-400 font-bold"
                               )}>
                                 {isAvailable ? "Disponible" : isReserved ? "Reservado" : "Vendido"}
                               </span>
@@ -62,7 +64,7 @@ export default function GlobalInventoryWidget({ inventoryByProject, projects }: 
                         </div>
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
