@@ -159,12 +159,12 @@ export default function CalendarAgenda() {
   }, [eventsByDay, selectedDayKey, activeFilter]);
 
   const upcomingItems = useMemo(() => {
-    const now = Date.now();
+    const now = today.getTime();
     return items
       .filter((it) => it.status === "scheduled" && new Date(it.scheduledAt).getTime() > now)
       .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
       .slice(0, 8);
-  }, [items]);
+  }, [items, today]);
 
   const monthStats = useMemo(() => {
     const month = viewDate.getMonth();

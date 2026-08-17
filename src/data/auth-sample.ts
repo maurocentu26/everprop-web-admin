@@ -8,6 +8,8 @@ export type UserProfile = {
   avatar: string;
   title: string;
   permissions: string[];
+  source?: "api" | "demo";
+  apiRole?: string;
 };
 
 export const MOCK_USERS: UserProfile[] = [
@@ -19,6 +21,7 @@ export const MOCK_USERS: UserProfile[] = [
     avatar: "MB",
     title: "Director General",
     permissions: ["full_access", "view_all_stats", "reassign_leads", "manage_inventory"],
+    source: "demo",
   },
   {
     id: "usr-manager",
@@ -28,6 +31,7 @@ export const MOCK_USERS: UserProfile[] = [
     avatar: "IS",
     title: "Ingeniera / Directora de Obra",
     permissions: ["desarrolladora_workspace", "manage_inventory", "construction_progress"],
+    source: "demo",
   },
   {
     id: "usr-sales",
@@ -37,6 +41,7 @@ export const MOCK_USERS: UserProfile[] = [
     avatar: "CV",
     title: "Asesor Comercial",
     permissions: ["assigned_leads_only", "assigned_visits_only"],
+    source: "demo",
   },
   {
     id: "usr-sales-2",
@@ -46,5 +51,6 @@ export const MOCK_USERS: UserProfile[] = [
     avatar: "LV",
     title: "Asesora Comercial",
     permissions: ["assigned_leads_only", "assigned_visits_only"],
+    source: "demo",
   },
 ];

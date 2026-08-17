@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import DashboardStats from "@/components/admin/DashboardStats";
 import EnterpriseDashboard from "@/components/admin/EnterpriseDashboard";
@@ -16,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useDashboardMode } from "@/lib/dashboard-context";
 import { useCurrentSession } from "@/hooks/use-current-session";
 import { motion, AnimatePresence } from "framer-motion";
+import ApiIntegrationStatus from "@/components/admin/ApiIntegrationStatus";
 
 export default function AdminPage() {
   const { mode: dashboardMode, setMode: setDashboardMode } = useDashboardMode();
@@ -28,6 +28,8 @@ export default function AdminPage() {
       transition={{ duration: 0.5 }}
       className="space-y-10"
     >
+      <ApiIntegrationStatus />
+
       {/* ── QUICK STATS BANNER ── */}
       {!isEngineer && (
         <section id="stats-banner">

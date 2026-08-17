@@ -2,21 +2,52 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { HardHat, Map, ArrowRight, Building2, ChevronRight } from "lucide-react";
+import { HardHat, Map, Building2, ChevronRight, Database, FlaskConical } from "lucide-react";
 import { type Project, type Property, projects as sampleProjects, properties as sampleProperties } from "@/data/admin-sample";
 import { loadProjectList, loadPropertyList } from "@/lib/admin-storage";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { loadEverpropCatalog } from "@/lib/everprop-api";
+
+type DataSource = "admin-api" | "public-api" | "demo-empty" | "demo-error";
 
 export default function DesarrollosPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [dataSource, setDataSource] = useState<DataSource>("demo-empty");
 
   useEffect(() => {
-    setProjects(loadProjectList(sampleProjects, "c1").filter(p => p.type !== "commercial"));
-    setProperties(loadPropertyList(sampleProperties, "c1"));
-    setIsLoaded(true);
+    let active = true;
+
+    async function loadData() {
+      try {
+        const catalog = await loadEverpropCatalog();
+        if (!active) return;
+
+        if (catalog.projects.length > 0 || catalog.properties.length > 0) {
+          setProjects(catalog.projects.filter((project) => project.type !== "commercial"));
+          setProperties(catalog.properties);
+          setDataSource(catalog.source);
+        } else {
+          setProjects(loadProjectList(sampleProjects, "c1").filter((project) => project.type !== "commercial"));
+          setProperties(loadPropertyList(sampleProperties, "c1"));
+          setDataSource("demo-empty");
+        }
+      } catch {
+        if (!active) return;
+        setProjects(loadProjectList(sampleProjects, "c1").filter((project) => project.type !== "commercial"));
+        setProperties(loadPropertyList(sampleProperties, "c1"));
+        setDataSource("demo-error");
+      } finally {
+        if (active) setIsLoaded(true);
+      }
+    }
+
+    void loadData();
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (!isLoaded) {
@@ -45,6 +76,28 @@ export default function DesarrollosPage() {
           </Button>
         </Link>
       </header>
+
+      <div className={cn(
+        "flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm",
+        dataSource === "admin-api" || dataSource === "public-api"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+          : "border-amber-200 bg-amber-50 text-amber-950",
+      )}>
+        {dataSource === "admin-api" || dataSource === "public-api" ? (
+          <Database className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        ) : (
+          <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        )}
+        <p>
+          {dataSource === "admin-api"
+            ? "Datos reales del catálogo administrativo EverProp."
+            : dataSource === "public-api"
+              ? "Datos reales del catálogo público EverProp."
+              : dataSource === "demo-empty"
+                ? "API conectada sin proyectos publicados: se muestran datos demo aislados."
+                : "API no disponible: se muestran datos demo aislados."}
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mt-8">
         {projects.map(project => {

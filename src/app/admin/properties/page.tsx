@@ -3,13 +3,16 @@
 import { useState, useMemo, useEffect } from "react";
 import PropertyList from "@/components/admin/PropertyList";
 import { Button } from "@/components/ui/button";
-import { Download, Plus, Map, Building2, RotateCcw } from "lucide-react";
+import { Download, Plus, Map, Building2, RotateCcw, Database, FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { type Property, properties as sampleProperties, projects as sampleProjects } from "@/data/admin-sample";
 import { loadPropertyList, loadProjectList } from "@/lib/admin-storage";
 import { cn } from "@/lib/utils";
 import { useDashboardMode } from "@/lib/dashboard-context";
 import { useCurrentSession } from "@/hooks/use-current-session";
+import { loadEverpropCatalog } from "@/lib/everprop-api";
+
+type DataSource = "admin-api" | "public-api" | "demo-empty" | "demo-error";
 
 export default function AllPropertiesPage() {
   const { mode } = useDashboardMode();
@@ -19,6 +22,7 @@ export default function AllPropertiesPage() {
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [projects, setProjects] = useState<typeof sampleProjects>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [dataSource, setDataSource] = useState<DataSource>("demo-empty");
 
   // Filters
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
@@ -26,9 +30,36 @@ export default function AllPropertiesPage() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
 
   useEffect(() => {
-    setAllProperties(loadPropertyList(sampleProperties, "c1"));
-    setProjects(loadProjectList(sampleProjects, "c1"));
-    setIsLoaded(true);
+    let active = true;
+
+    async function loadData() {
+      try {
+        const catalog = await loadEverpropCatalog();
+        if (!active) return;
+
+        if (catalog.projects.length > 0 || catalog.properties.length > 0) {
+          setAllProperties(catalog.properties);
+          setProjects(catalog.projects);
+          setDataSource(catalog.source);
+        } else {
+          setAllProperties(loadPropertyList(sampleProperties, "c1"));
+          setProjects(loadProjectList(sampleProjects, "c1"));
+          setDataSource("demo-empty");
+        }
+      } catch {
+        if (!active) return;
+        setAllProperties(loadPropertyList(sampleProperties, "c1"));
+        setProjects(loadProjectList(sampleProjects, "c1"));
+        setDataSource("demo-error");
+      } finally {
+        if (active) setIsLoaded(true);
+      }
+    }
+
+    void loadData();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const toggleType = (type: string) => {
@@ -96,6 +127,28 @@ export default function AllPropertiesPage() {
             </Button>
           </Link>
         </div>
+      </div>
+
+      <div className={cn(
+        "flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm",
+        dataSource === "admin-api" || dataSource === "public-api"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+          : "border-amber-200 bg-amber-50 text-amber-950",
+      )}>
+        {dataSource === "admin-api" || dataSource === "public-api" ? (
+          <Database className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        ) : (
+          <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        )}
+        <p>
+          {dataSource === "admin-api"
+            ? "Inventario real del endpoint administrativo EverProp."
+            : dataSource === "public-api"
+              ? "Inventario real publicado por EverProp."
+              : dataSource === "demo-empty"
+                ? "API conectada sin propiedades publicadas: se mantiene el inventario demo aislado."
+                : "API no disponible: se mantiene el inventario demo aislado."}
+        </p>
       </div>
 
       {/* Control Panel / Filtros */}
