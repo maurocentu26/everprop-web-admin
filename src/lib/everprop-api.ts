@@ -62,6 +62,10 @@ export class EverpropApiError extends Error {
   }
 }
 
+export function isInvalidEverpropSession(error: unknown) {
+  return error instanceof EverpropApiError && [401, 403, 419].includes(error.status);
+}
+
 function xsrfToken() {
   if (typeof document === "undefined") return "";
   const entry = document.cookie.split("; ").find((cookie) => cookie.startsWith("XSRF-TOKEN="));
@@ -88,8 +92,15 @@ async function apiFetch<T>(path: string, init: RequestInit = {}) {
       cache: "no-store",
       signal: init.signal || AbortSignal.timeout(10_000),
     });
-  } catch {
-    throw new EverpropApiError("No se pudo conectar con la API EverProp.", 0);
+  } catch (reason) {
+    const timedOut =
+      reason instanceof DOMException && ["AbortError", "TimeoutError"].includes(reason.name);
+    throw new EverpropApiError(
+      timedOut
+        ? "La API EverProp demoró más de 10 segundos en responder."
+        : "No se pudo conectar con la API EverProp.",
+      0,
+    );
   }
 
   if (response.status === 204) return null as T;
@@ -215,7 +226,7 @@ export async function currentEverpropUser() {
     const response = await apiFetch<ApiEnvelope<ApiUser>>("/api/v1/auth/me");
     return mapUser(response.data);
   } catch (error) {
-    if (error instanceof EverpropApiError && error.status === 401) return null;
+    if (isInvalidEverpropSession(error)) return null;
     throw error;
   }
 }
@@ -238,15 +249,10 @@ async function catalogFrom(prefix: "/api/v1/admin" | "/api/v1/public") {
 }
 
 export async function loadEverpropCatalog() {
-  try {
-    return await catalogFrom("/api/v1/admin");
-  } catch (error) {
-    if (!(error instanceof EverpropApiError) || ![401, 419].includes(error.status)) throw error;
-    return catalogFrom("/api/v1/public");
-  }
+  return catalogFrom("/api/v1/admin");
 }
 
 export async function everpropHealth() {
   const response = await apiFetch<{ status?: string }>("/healthz");
-  return response.status === "ok";
+  return ["ok", "up", "ready"].includes(response.status || "");
 }

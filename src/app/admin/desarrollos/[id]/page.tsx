@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { HardHat, ArrowLeft, BarChart3, Map, Clock, Building2 } from "lucide-react";
 import { type Project, type Property, projects as sampleProjects, properties as sampleProperties } from "@/data/admin-sample";
 import { loadProjectList, loadPropertyList } from "@/lib/admin-storage";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import InventoryMatrix from "@/components/admin/InventoryMatrix";
@@ -19,13 +20,15 @@ export default function ProjectDetailView() {
   const [activeTab, setActiveTab] = useState<"overview" | "matrix" | "log">("overview");
 
   useEffect(() => {
-    const allProj = loadProjectList(sampleProjects, "c1");
-    const p = allProj.find(p => p.id === projectId);
-    if (p) {
-      setProject(p);
-      const allProps = loadPropertyList(sampleProperties, "c1");
-      setProperties(allProps.filter(prop => prop.projectId === projectId));
-    }
+    return deferEffectUpdate(() => {
+      const allProj = loadProjectList(sampleProjects, "c1");
+      const p = allProj.find(p => p.id === projectId);
+      if (p) {
+        setProject(p);
+        const allProps = loadPropertyList(sampleProperties, "c1");
+        setProperties(allProps.filter(prop => prop.projectId === projectId));
+      }
+    });
   }, [projectId]);
 
   if (!project) return (

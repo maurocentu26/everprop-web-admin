@@ -1,20 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Database, Loader2 } from "lucide-react";
-import { everpropHealth, loadEverpropCatalog } from "@/lib/everprop-api";
+import { AlertTriangle, CheckCircle2, Database, Loader2, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
+import { everpropHealth, isInvalidEverpropSession, loadEverpropCatalog } from "@/lib/everprop-api";
 
 type IntegrationState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | {
-      status: "ready";
-      source: "admin-api" | "public-api";
-      projects: number;
-      properties: number;
-    };
+  | { status: "ready"; projects: number; properties: number };
 
 export default function ApiIntegrationStatus() {
+  const { invalidateSession } = useAuth();
+  const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<IntegrationState>({ status: "loading" });
 
   useEffect(() => {
@@ -27,12 +26,15 @@ export default function ApiIntegrationStatus() {
         if (active) {
           setState({
             status: "ready",
-            source: catalog.source,
             projects: catalog.projects.length,
             properties: catalog.properties.length,
           });
         }
       } catch (reason) {
+        if (isInvalidEverpropSession(reason)) {
+          invalidateSession();
+          return;
+        }
         if (active) {
           setState({
             status: "error",
@@ -46,38 +48,51 @@ export default function ApiIntegrationStatus() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [attempt, invalidateSession]);
 
   if (state.status === "loading") {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm" role="status">
         <Loader2 className="h-4 w-4 animate-spin text-blue-600" aria-hidden="true" />
-        Verificando Laravel, tenant y catálogo…
+        Verificando Laravel, sesión, tenant y catálogo…
       </div>
     );
   }
 
   if (state.status === "error") {
     return (
-      <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="alert">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
-        <div>
-          <p className="font-semibold">API no disponible; módulos en modo demo</p>
-          <p className="mt-0.5 text-xs text-amber-800">{state.message}</p>
+      <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-950 sm:flex-row sm:items-center sm:justify-between" role="alert">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
+          <div>
+            <p className="font-semibold">No se pudo consultar EverProp</p>
+            <p className="mt-0.5 text-xs text-rose-800">{state.message} No se cargaron datos mock.</p>
+          </div>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0 border-rose-300 bg-white text-rose-800 hover:bg-rose-100"
+          onClick={() => {
+            setState({ status: "loading" });
+            setAttempt((current) => current + 1);
+          }}
+        >
+          <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" /> Reintentar
+        </Button>
       </div>
     );
   }
 
-  const authenticated = state.source === "admin-api";
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
         <div>
-          <p className="font-semibold">EverProp API conectada · tenant Bellomo</p>
+          <p className="font-semibold">EverProp API conectada · sesión administrativa · tenant Bellomo</p>
           <p className="mt-0.5 text-xs text-emerald-800">
-            {authenticated ? "Catálogo administrativo autenticado." : "Catálogo público real; edición aún en modo demo."}
+            Los conteos provienen del catálogo administrativo real; un valor cero representa un estado vacío válido.
           </p>
         </div>
       </div>

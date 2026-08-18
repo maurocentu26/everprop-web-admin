@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import VisitManager from "@/components/admin/VisitManager";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 type Props = {
   propertyId: string;
@@ -29,14 +30,16 @@ export default function PropertyDetailView({ propertyId }: Props) {
 
   // Carga inicial de datos
   useEffect(() => {
-    const initialProperties = loadPropertyList(sampleProperties, "c1");
-    const initialLeads = loadLeadList(sampleLeads, "c1");
-    
-    setAllProperties(initialProperties);
-    setAllLeads(initialLeads);
-    
-    const foundProperty = initialProperties.find((item) => item.id === propertyId);
-    setProperty(foundProperty ?? null);
+    return deferEffectUpdate(() => {
+      const initialProperties = loadPropertyList(sampleProperties, "c1");
+      const initialLeads = loadLeadList(sampleLeads, "c1");
+
+      setAllProperties(initialProperties);
+      setAllLeads(initialLeads);
+
+      const foundProperty = initialProperties.find((item) => item.id === propertyId);
+      setProperty(foundProperty ?? null);
+    });
   }, [propertyId]);
 
   // --- Manejo de Visitas ---

@@ -40,6 +40,7 @@ import { loadLeadList, loadPropertyList, loadProjectList, saveLeadList } from "@
 import { useAuth } from "@/lib/auth-context";
 import { MOCK_USERS } from "@/data/auth-sample";
 import { cn } from "@/lib/utils";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 export type AssetCategory = "loteo" | "local" | "cochera" | "tradicional";
 
@@ -127,10 +128,12 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
   const [allProjects, setAllProjects] = useState<any[]>([]);
 
   useEffect(() => {
-    if (open) {
-      setAllProperties(loadPropertyList(sampleProperties, companyId));
-      setAllProjects(loadProjectList(sampleProjects, companyId));
-    }
+    return deferEffectUpdate(() => {
+      if (open) {
+        setAllProperties(loadPropertyList(sampleProperties, companyId));
+        setAllProjects(loadProjectList(sampleProjects, companyId));
+      }
+    });
   }, [open, companyId]);
 
   const form = useForm<FormValues>({

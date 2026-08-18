@@ -140,6 +140,9 @@ export default function CardLead({ id, name, phone, email, origin, properties = 
               <div className="flex items-center gap-1.5">
                 {/* Botón Teléfono */}
                 <button
+                  type="button"
+                  aria-expanded={showPhone}
+                  aria-label={`${showPhone ? "Ocultar" : "Mostrar"} teléfono de ${name}`}
                   onClick={(e) => {
                       e.preventDefault(); // Evita navegar al detalle del lead
                       e.stopPropagation();
@@ -156,6 +159,9 @@ export default function CardLead({ id, name, phone, email, origin, properties = 
 
                 {/* Botón Email */}
                 <button
+                  type="button"
+                  aria-expanded={showEmail}
+                  aria-label={`${showEmail ? "Ocultar" : "Mostrar"} email de ${name}`}
                   onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();

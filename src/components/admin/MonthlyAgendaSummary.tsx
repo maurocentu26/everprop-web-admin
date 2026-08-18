@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCurrentSession } from "@/hooks/use-current-session";
 import { useDashboardMode } from "@/lib/dashboard-context";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 type TimelineVisit = Visit & {
   leadName: string;
@@ -60,7 +61,8 @@ export default function MonthlyAgendaSummary() {
   const year  = useMemo(() => currentDate.getFullYear(), [currentDate]);
 
   useEffect(() => {
-    let leads = loadLeadList(sampleLeads, "c1");
+    return deferEffectUpdate(() => {
+      let leads = loadLeadList(sampleLeads, "c1");
 
     const effectiveAgentId = isAdvisor ? user?.id : globalSelectedAgentId;
     if (effectiveAgentId && effectiveAgentId !== "all") {
@@ -108,7 +110,8 @@ export default function MonthlyAgendaSummary() {
     }
 
     items.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
-    setVisits(items);
+      setVisits(items);
+    });
   }, [isAdvisor, isAdmin, user, globalSelectedAgentId]);
 
   // ─── Derived data (after all hooks) ─────────────────────────────────────

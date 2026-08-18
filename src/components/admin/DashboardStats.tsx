@@ -8,6 +8,7 @@ import { loadLeadList, loadPropertyList } from "@/lib/admin-storage";
 import { useAuth } from "@/lib/auth-context";
 import { useDashboardMode } from "@/lib/dashboard-context";
 import { MOCK_USERS } from "@/data/auth-sample";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 type Props = {
   companyId?: string;
@@ -26,18 +27,20 @@ export default function DashboardStats({ companyId = "c1" }: Props) {
   const effectiveAgentId = currentUser?.role === "ADVISOR" ? currentUser.id : globalSelectedAgentId;
 
   useEffect(() => {
-    const currentProperties = loadPropertyList(sampleProperties, companyId);
-    let currentLeads = loadLeadList(sampleLeads, companyId);
+    return deferEffectUpdate(() => {
+      const currentProperties = loadPropertyList(sampleProperties, companyId);
+      let currentLeads = loadLeadList(sampleLeads, companyId);
 
-    if (effectiveAgentId !== "all") {
-      currentLeads = currentLeads.filter(l => l.agentId === effectiveAgentId);
-      // Optional: Filter properties if they are assigned to an agent, but for now properties aren't assigned.
-    }
+      if (effectiveAgentId !== "all") {
+        currentLeads = currentLeads.filter(l => l.agentId === effectiveAgentId);
+        // Optional: Filter properties if they are assigned to an agent, but for now properties aren't assigned.
+      }
 
-    setCounts({
-      properties: currentProperties.length,
-      leads: currentLeads.length,
-      closingLeads: currentLeads.filter((lead) => lead.stage === "closing").length,
+      setCounts({
+        properties: currentProperties.length,
+        leads: currentLeads.length,
+        closingLeads: currentLeads.filter((lead) => lead.stage === "closing").length,
+      });
     });
   }, [companyId, effectiveAgentId]);
 

@@ -7,7 +7,6 @@ import {
   Plus,
   HardHat,
   Map,
-  Layers,
   Store,
   type LucideIcon 
 } from "lucide-react";
@@ -38,7 +37,6 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { title: "Dashboard", href: "/admin#dashboard", icon: Home, hash: "#dashboard" },
       { title: "Proyectos", href: "/admin/desarrollos", icon: HardHat, matchPath: "/admin/desarrollos" },
-      { title: "Masterplans", href: "/admin/masterplans", icon: Layers, matchPath: "/admin/masterplans" },
       { title: "Inventario", href: "/admin/inventory-matrix", icon: Map, matchPath: "/admin/inventory-matrix" },
     ]
   },

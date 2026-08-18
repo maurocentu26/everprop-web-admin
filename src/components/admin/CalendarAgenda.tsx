@@ -17,6 +17,7 @@ import { useDashboardMode } from "@/lib/dashboard-context";
 import { leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
 import { MOCK_USERS } from "@/data/auth-sample";
 import { cn } from "@/lib/utils";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 type AgendaItem = Visit & {
   leadName: string;
@@ -137,7 +138,7 @@ export default function CalendarAgenda() {
     setItems(merged);
   }, [isAdvisor, isAdmin, user, globalSelectedAgentId]);
 
-  useEffect(() => { loadItems(); }, [loadItems]);
+  useEffect(() => deferEffectUpdate(loadItems), [loadItems]);
 
   // ─── Derived data ────────────────────────────────────────────────────────
   const grid = useMemo(() => getMonthGrid(viewDate), [viewDate]);

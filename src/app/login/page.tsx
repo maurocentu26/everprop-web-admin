@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Command, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
 import { MOCK_USERS } from "@/data/auth-sample";
 import { useAuth } from "@/lib/auth-context";
+import { isMockDataMode } from "@/lib/data-mode";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -90,91 +91,97 @@ export default function LoginPage() {
             <Command className="h-7 w-7 text-white" aria-hidden="true" />
           </div>
           <h1 className="mb-2 text-3xl font-semibold tracking-tight text-white">EverProp · Bellomo</h1>
-          <p className="text-sm text-slate-400">Panel integrado con Laravel y modo demo claramente separado.</p>
+          <p className="text-sm text-slate-400">
+            {isMockDataMode
+              ? "Entorno aislado para QA visual con datos no reales."
+              : "Acceso al panel mediante una sesión real de EverProp."}
+          </p>
         </div>
 
         <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/50 backdrop-blur-md sm:p-7">
-          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" aria-hidden="true" />
-            <div>
-              <h2 className="text-sm font-semibold text-white">Sesión real EverProp</h2>
-              <p className="mt-1 text-xs leading-5 text-slate-300">Usa Sanctum, tenant Bellomo y las credenciales existentes de la API local.</p>
-            </div>
-          </div>
+          {isMockDataMode ? (
+            <>
+              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4" role="note">
+                <FlaskConical className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
+                <div>
+                  <h2 className="text-sm font-semibold text-white">QA visual mock</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-300">
+                    Usa muestras y localStorage. No crea una sesión ni confirma datos u operaciones en la API.
+                  </p>
+                </div>
+              </div>
 
-          <form onSubmit={handleApiLogin} className="space-y-4">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Email
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="username"
-                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-normal normal-case tracking-normal text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
-              />
-            </label>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Contraseña
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-normal normal-case tracking-normal text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
-              />
-            </label>
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
-            >
-              Ingresar con EverProp API
-            </button>
-          </form>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {MOCK_USERS.map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => void handleDemoLogin(user.email)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-2xl border border-white/5 bg-white/5 p-3 text-left transition-all hover:border-white/20 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-400",
+                      selectedEmail === user.email && "border-amber-400 bg-amber-400/10",
+                    )}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-xs font-bold text-white shadow-inner">
+                      {user.avatar}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-xs font-semibold text-white">{user.name}</h3>
+                      <p className="truncate text-[10px] text-slate-400">{user.role} · mock</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" aria-hidden="true" />
+                <div>
+                  <h2 className="text-sm font-semibold text-white">Sesión real EverProp</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-300">Usa Sanctum, tenant Bellomo y las credenciales existentes de la API local.</p>
+                </div>
+              </div>
 
-          {error && (
-            <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-xs text-red-100" role="alert">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              {error}
-            </div>
+              <form onSubmit={handleApiLogin} className="space-y-4">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+                  Email
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="username"
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-normal normal-case tracking-normal text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+                  Contraseña
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-normal normal-case tracking-normal text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+                >
+                  Ingresar con EverProp API
+                </button>
+              </form>
+
+              {error && (
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-xs text-red-100" role="alert">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  {error}
+                </div>
+              )}
+            </>
           )}
-
-          <div className="my-6 flex items-center gap-3" aria-hidden="true">
-            <span className="h-px flex-1 bg-white/10" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">o</span>
-            <span className="h-px flex-1 bg-white/10" />
-          </div>
-
-          <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4">
-            <FlaskConical className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
-            <div>
-              <h2 className="text-sm font-semibold text-white">Modo demo aislado</h2>
-              <p className="mt-1 text-xs leading-5 text-slate-300">Usa mocks y localStorage. No crea una sesión ni confirma operaciones en la API.</p>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {MOCK_USERS.map((user) => (
-              <button
-                key={user.id}
-                type="button"
-                onClick={() => void handleDemoLogin(user.email)}
-                className={cn(
-                  "flex items-center gap-3 rounded-2xl border border-white/5 bg-white/5 p-3 text-left transition-all hover:border-white/20 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-400",
-                  selectedEmail === user.email && "border-amber-400 bg-amber-400/10",
-                )}
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-xs font-bold text-white shadow-inner">
-                  {user.avatar}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-xs font-semibold text-white">{user.name}</h3>
-                  <p className="truncate text-[10px] text-slate-400">{user.role} · demo</p>
-                </div>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </div>

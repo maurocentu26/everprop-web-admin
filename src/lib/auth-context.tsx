@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { MOCK_USERS, type UserProfile } from "@/data/auth-sample";
 import { currentEverpropUser, loginEverprop, logoutEverprop } from "@/lib/everprop-api";
+import { isMockDataMode } from "@/lib/data-mode";
 
 interface AuthContextType {
   currentUser: UserProfile | null;
@@ -10,6 +11,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginDemo: (email: string, delayMs?: number) => Promise<void>;
   logout: () => Promise<void>;
+  invalidateSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,6 +25,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     async function restoreSession() {
+      if (isMockDataMode) {
+        const storedDemo = localStorage.getItem(DEMO_STORAGE_KEY);
+        if (!storedDemo) return;
+
+        try {
+          const parsed = JSON.parse(storedDemo) as UserProfile;
+          if (parsed.source === "demo" && active) setCurrentUser(parsed);
+        } catch {
+          localStorage.removeItem(DEMO_STORAGE_KEY);
+        }
+        return;
+      }
+
+      localStorage.removeItem(DEMO_STORAGE_KEY);
       try {
         const apiUser = await currentEverpropUser();
         if (!active) return;
@@ -33,17 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
       } catch {
-        // API connectivity is surfaced by the integration status component.
-      }
-
-      const storedDemo = localStorage.getItem(DEMO_STORAGE_KEY);
-      if (storedDemo && active) {
-        try {
-          const parsed = JSON.parse(storedDemo) as UserProfile;
-          if (parsed.source === "demo") setCurrentUser(parsed);
-        } catch {
-          localStorage.removeItem(DEMO_STORAGE_KEY);
-        }
+        // A connectivity error never authorizes a local or mock session.
       }
     }
 
@@ -56,21 +62,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     const user = await loginEverprop(email, password);
     localStorage.removeItem(DEMO_STORAGE_KEY);
     setCurrentUser(user);
-  };
+  }, []);
 
-  const loginDemo = async (email: string, delayMs = 400) => {
+  const loginDemo = useCallback(async (email: string, delayMs = 400) => {
+    if (!isMockDataMode) {
+      throw new Error("El modo mock no está habilitado en este entorno.");
+    }
     await new Promise((resolve) => window.setTimeout(resolve, delayMs));
     const user = MOCK_USERS.find((candidate) => candidate.email === email);
     if (!user) throw new Error("Perfil demo no encontrado.");
     localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(user));
     setCurrentUser(user);
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     if (currentUser?.source === "api") {
       try {
         await logoutEverprop();
@@ -82,12 +91,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(DEMO_STORAGE_KEY);
     setCurrentUser(null);
     window.location.assign("/login");
-  };
+  }, [currentUser?.source]);
+
+  const invalidateSession = useCallback(() => {
+    localStorage.removeItem(DEMO_STORAGE_KEY);
+    setCurrentUser(null);
+  }, []);
+
+  const value = useMemo(
+    () => ({ currentUser, isLoaded, login, loginDemo, logout, invalidateSession }),
+    [currentUser, invalidateSession, isLoaded, login, loginDemo, logout],
+  );
 
   return (
-    <AuthContext.Provider value={{ currentUser, isLoaded, login, loginDemo, logout }}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 }
 

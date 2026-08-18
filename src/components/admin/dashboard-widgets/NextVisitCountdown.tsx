@@ -9,6 +9,7 @@ import { useDashboardMode } from "@/lib/dashboard-context";
 import { Clock, MapPin, User, Phone, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 type EnrichedVisit = Visit & {
   leadName: string;
@@ -64,7 +65,8 @@ export default function NextVisitCountdown() {
   const [nextVisit, setNextVisit] = useState<EnrichedVisit | null>(null);
 
   useEffect(() => {
-    let leads = loadLeadList(sampleLeads, "c1");
+    return deferEffectUpdate(() => {
+      let leads = loadLeadList(sampleLeads, "c1");
     const properties = loadPropertyList(sampleProperties, "c1");
 
     const effectiveAgentId = isAdvisor ? user?.id : globalSelectedAgentId;
@@ -91,7 +93,8 @@ export default function NextVisitCountdown() {
       .filter((v) => v.status === "scheduled" && new Date(v.scheduledAt).getTime() > now)
       .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
-    setNextVisit(upcoming[0] ?? null);
+      setNextVisit(upcoming[0] ?? null);
+    });
   }, [isAdvisor, isAdmin, user, globalSelectedAgentId]);
 
   const countdown = useCountdown(nextVisit?.scheduledAt);

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { leads as sampleLeads, properties as sampleProperties, type Lead } from "@/data/admin-sample";
 import { loadLeadList, loadPropertyList, saveLeadList } from "@/lib/admin-storage";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 type Props = {
   companyId?: string;
@@ -60,14 +61,16 @@ export function NewLeadForm({ companyId = "c1" }: Props) {
   });
 
   useEffect(() => {
-    const nextProperties = loadPropertyList(sampleProperties, companyId);
-    const options = nextProperties.map((property) => ({ id: property.id, title: property.title }));
-    setPropertyOptions(options);
+    return deferEffectUpdate(() => {
+      const nextProperties = loadPropertyList(sampleProperties, companyId);
+      const options = nextProperties.map((property) => ({ id: property.id, title: property.title }));
+      setPropertyOptions(options);
 
-    const currentPropertyId = form.getValues("propertyId");
-    if (!currentPropertyId && options[0]) {
-      form.setValue("propertyId", options[0].id, { shouldValidate: true });
-    }
+      const currentPropertyId = form.getValues("propertyId");
+      if (!currentPropertyId && options[0]) {
+        form.setValue("propertyId", options[0].id, { shouldValidate: true });
+      }
+    });
   }, [companyId, form]);
 
   async function onSubmit(data: z.infer<typeof formSchema>) {

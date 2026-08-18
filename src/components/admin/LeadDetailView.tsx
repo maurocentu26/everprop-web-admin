@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createNotification } from "@/lib/notifications";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 import FinancingCalculator from "@/components/admin/FinancingCalculator";
 
 export default function LeadDetailView({ leadId }: { leadId: string }) {
@@ -31,11 +32,13 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
   const [pendingAgentId, setPendingAgentId] = useState<string | null>(null);
 
   useEffect(() => {
-    const initialLeads = loadLeadList(sampleLeads, "c1");
-    const initialProperties = loadPropertyList(sampleProperties, "c1");
-    setAllLeads(initialLeads);
-    setAllProperties(initialProperties);
-    setLead(initialLeads.find((l) => l.id === leadId) ?? null);
+    return deferEffectUpdate(() => {
+      const initialLeads = loadLeadList(sampleLeads, "c1");
+      const initialProperties = loadPropertyList(sampleProperties, "c1");
+      setAllLeads(initialLeads);
+      setAllProperties(initialProperties);
+      setLead(initialLeads.find((l) => l.id === leadId) ?? null);
+    });
   }, [leadId]);
 
   // --- Lógica para Vincular Propiedad ---
