@@ -8,6 +8,7 @@ import { Download, Plus, Filter, Search } from "lucide-react";
 import Link from "next/link";
 import { type Lead, leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
 import { loadLeadList } from "@/lib/admin-storage";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 
@@ -27,17 +28,21 @@ export default function AllLeadsPage() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    setAllLeads(loadLeadList(sampleLeads, "c1"));
-    setIsLoaded(true);
+    return deferEffectUpdate(() => {
+      setAllLeads(loadLeadList(sampleLeads, "c1"));
+      setIsLoaded(true);
+    });
   }, []);
 
   // Reset filters when switching workspace modes (Task 3 Bug Fix)
   useEffect(() => {
-    if (dashboardMode === "agency") {
-      setAssetType("all");
-      setActiveStage("all");
-      setSearchQuery("");
-    }
+    return deferEffectUpdate(() => {
+      if (dashboardMode === "agency") {
+        setAssetType("all");
+        setActiveStage("all");
+        setSearchQuery("");
+      }
+    });
   }, [dashboardMode]);
 
   const hasActiveFilters = searchQuery !== "" || activeStage !== "all" || assetType !== "all";

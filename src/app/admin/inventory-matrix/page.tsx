@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Map, LayoutGrid } from "lucide-react";
 import { type Property, properties as sampleProperties, projects as sampleProjects } from "@/data/admin-sample";
 import { loadPropertyList, loadProjectList } from "@/lib/admin-storage";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 import InventoryMatrix from "@/components/admin/InventoryMatrix";
 
 export default function GlobalInventoryMatrixPage() {
@@ -15,11 +16,13 @@ export default function GlobalInventoryMatrixPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
 
   useEffect(() => {
-    setProperties(loadPropertyList(sampleProperties, "c1"));
-    const allProj = loadProjectList(sampleProjects, "c1");
-    // Only keep projects that actually have units in the inventory matrix (like lotes or buildings, wait let's just keep all)
-    setProjects(allProj);
-    setIsLoaded(true);
+    return deferEffectUpdate(() => {
+      setProperties(loadPropertyList(sampleProperties, "c1"));
+      const allProj = loadProjectList(sampleProjects, "c1");
+      // Only keep projects that actually have units in the inventory matrix (like lotes or buildings, wait let's just keep all)
+      setProjects(allProj);
+      setIsLoaded(true);
+    });
   }, []);
 
   const filteredProperties = useMemo(() => {

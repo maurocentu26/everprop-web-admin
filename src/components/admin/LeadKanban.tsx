@@ -30,6 +30,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 // --- Componente Principal ---
 export default function LeadKanban({ companyId = "c1", dashboardMode = "enterprise" }: { companyId?: string, dashboardMode?: "agency" | "enterprise" }) {
@@ -58,8 +59,10 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
   );
 
   useEffect(() => {
-    setLeads(loadLeadList(sampleLeads, companyId));
-    setHydrated(true);
+    return deferEffectUpdate(() => {
+      setLeads(loadLeadList(sampleLeads, companyId));
+      setHydrated(true);
+    });
   }, [companyId]);
 
   useEffect(() => {
@@ -112,9 +115,11 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
 
   // Reset project filter whenever workspace mode changes (Task 3 Bug Fix)
   useEffect(() => {
-    if (dashboardMode === "agency") {
-      setSelectedProjectId("all");
-    }
+    return deferEffectUpdate(() => {
+      if (dashboardMode === "agency") {
+        setSelectedProjectId("all");
+      }
+    });
   }, [dashboardMode]);
 
   // Filtered Leads

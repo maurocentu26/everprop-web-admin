@@ -14,6 +14,7 @@ import { properties as sampleProperties, type Property } from "@/data/admin-samp
 import { loadPropertyList, savePropertyList } from "@/lib/admin-storage";
 import { Car, Store, Map, Building2, Home, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 import CategorySelector from "./property-form/CategorySelector";
 import TraditionalFields from "./property-form/TraditionalFields";
@@ -48,9 +49,11 @@ export default function NewPropertyForm({ companyId = "c1" }: Props) {
 
   // When category changes, update the default active tab
   useEffect(() => {
-    if (category === "tradicional") setActiveTab("Casa");
-    if (category === "loteo") setActiveTab("Lote");
-    if (category === "comercial") setActiveTab("Local");
+    return deferEffectUpdate(() => {
+      if (category === "tradicional") setActiveTab("Casa");
+      if (category === "loteo") setActiveTab("Lote");
+      if (category === "comercial") setActiveTab("Local");
+    });
   }, [category]);
 
   // Sync activeTab to form

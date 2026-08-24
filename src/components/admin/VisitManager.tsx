@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Badge from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 type Props = {
   title: string;
@@ -80,9 +81,11 @@ export default function VisitManager({
 
 
   useEffect(() => {
-    if (defaultGuestName) setGuestName(defaultGuestName);
-    if (defaultPhone) setPhone(defaultPhone);
-    if (defaultEmail) setEmail(defaultEmail);
+    return deferEffectUpdate(() => {
+      if (defaultGuestName) setGuestName(defaultGuestName);
+      if (defaultPhone) setPhone(defaultPhone);
+      if (defaultEmail) setEmail(defaultEmail);
+    });
   }, [defaultGuestName, defaultPhone, defaultEmail]);
 
   const sortedVisits = useMemo(() => {

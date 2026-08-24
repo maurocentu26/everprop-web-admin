@@ -8,6 +8,7 @@ import { leads as sampleLeads, properties as sampleProperties, projects as sampl
 import { loadLeadList, loadPropertyList, loadProjectList } from "@/lib/admin-storage";
 import { SearchPropertyItem } from "../SearchPropertyItem";
 import { SearchLeadItem } from "../SearchLeadItem";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 import {
   InputGroup,
@@ -24,16 +25,21 @@ export function GlobalSearch() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   useEffect(() => {
-    setAllProperties(loadPropertyList(sampleProperties, "c1"));
-    setAllLeads(loadLeadList(sampleLeads, "c1"));
-    setAllProjects(loadProjectList(sampleProjects, "c1"));
+    const cancelDeferredUpdate = deferEffectUpdate(() => {
+      setAllProperties(loadPropertyList(sampleProperties, "c1"));
+      setAllLeads(loadLeadList(sampleLeads, "c1"));
+      setAllProjects(loadProjectList(sampleProjects, "c1"));
+    });
 
     // Cerrar buscador con ESC
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") setSearchQuery("");
     };
     window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+    return () => {
+      cancelDeferredUpdate();
+      window.removeEventListener("keydown", handleEsc);
+    };
   }, []);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();

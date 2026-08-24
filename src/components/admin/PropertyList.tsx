@@ -1,16 +1,12 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import type { Property } from "@/data/admin-sample";
 import PropertyCard from "@/components/admin/PropertyCard";
-import { loadPropertyList, savePropertyList } from "@/lib/admin-storage";
-import { properties as sampleProperties } from "@/data/admin-sample";
 
 type Props = {
   properties: Property[];
+  readOnly?: boolean;
 };
 
-export default function PropertyList({ properties }: Props) {
+export default function PropertyList({ properties, readOnly = false }: Props) {
   const totalProperties = properties.length;
 
   return (
@@ -22,7 +18,9 @@ export default function PropertyList({ properties }: Props) {
             Mostrando {totalProperties} de {totalProperties} activos
           </p>
         </div>
-        <button className="text-sm font-medium text-blue-700 hover:text-blue-800">Manage</button>
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          {readOnly ? "Sólo lectura" : "Gestión mock"}
+        </span>
       </div>
 
       <div className="overflow-x-auto">
@@ -49,7 +47,7 @@ export default function PropertyList({ properties }: Props) {
 
           <tbody>
             {properties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
+              <PropertyCard key={property.id} property={property} readOnly={readOnly} />
             ))}
           </tbody>
         </table>

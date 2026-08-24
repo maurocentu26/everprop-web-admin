@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import DashboardStats from "@/components/admin/DashboardStats";
 import EnterpriseDashboard from "@/components/admin/EnterpriseDashboard";
@@ -11,15 +10,58 @@ import MonthlyAgendaSummary from "@/components/admin/MonthlyAgendaSummary";
 import QuickStatsBanner from "@/components/admin/dashboard-widgets/QuickStatsBanner";
 import PipelineFunnelWidget from "@/components/admin/dashboard-widgets/PipelineFunnelWidget";
 import NextVisitCountdown from "@/components/admin/dashboard-widgets/NextVisitCountdown";
-import { Building2, HardHat } from "lucide-react";
+import { ArrowRight, Building2, HardHat, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardMode } from "@/lib/dashboard-context";
 import { useCurrentSession } from "@/hooks/use-current-session";
 import { motion, AnimatePresence } from "framer-motion";
+import ApiIntegrationStatus from "@/components/admin/ApiIntegrationStatus";
+import { isMockDataMode } from "@/lib/data-mode";
 
 export default function AdminPage() {
   const { mode: dashboardMode, setMode: setDashboardMode } = useDashboardMode();
   const { isEngineer, isAdmin } = useCurrentSession();
+
+  if (!isMockDataMode) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.25 }}
+        className="space-y-6"
+      >
+        <ApiIntegrationStatus />
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex items-start gap-4">
+            <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-700">
+              <ShieldCheck className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Panel conectado en modo API</h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Sólo se muestran módulos respaldados por endpoints administrativos existentes. Métricas, leads, agenda, notificaciones y mutaciones permanecen bloqueados hasta contar con integración real.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <Link href="/admin/desarrollos" className="group rounded-2xl border border-slate-200 p-5 transition hover:border-blue-300 hover:bg-blue-50/40">
+              <HardHat className="h-5 w-5 text-blue-600" aria-hidden="true" />
+              <h2 className="mt-3 font-bold text-slate-900">Proyectos reales</h2>
+              <p className="mt-1 text-sm text-slate-500">Consulta de catálogo administrativo con estados de vacío y error.</p>
+              <span className="mt-4 inline-flex items-center text-sm font-semibold text-blue-700">Abrir <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-1" /></span>
+            </Link>
+            <Link href="/admin/properties" className="group rounded-2xl border border-slate-200 p-5 transition hover:border-blue-300 hover:bg-blue-50/40">
+              <Building2 className="h-5 w-5 text-blue-600" aria-hidden="true" />
+              <h2 className="mt-3 font-bold text-slate-900">Propiedades reales</h2>
+              <p className="mt-1 text-sm text-slate-500">Inventario administrativo en modo lectura, sin datos sustitutos.</p>
+              <span className="mt-4 inline-flex items-center text-sm font-semibold text-blue-700">Abrir <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-1" /></span>
+            </Link>
+          </div>
+        </section>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

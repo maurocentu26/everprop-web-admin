@@ -8,6 +8,7 @@ import { useCurrentSession } from "@/hooks/use-current-session";
 import { useDashboardMode } from "@/lib/dashboard-context";
 import { TrendingUp, Users, Building2, DollarSign, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 function AnimatedNumber({ target, prefix = "", suffix = "" }: { target: number; prefix?: string; suffix?: string }) {
   const count = useMotionValue(0);
@@ -40,7 +41,8 @@ export default function QuickStatsBanner() {
   const [stats, setStats] = useState<Stat[]>([]);
 
   useEffect(() => {
-    let leads = loadLeadList(sampleLeads, "c1");
+    return deferEffectUpdate(() => {
+      let leads = loadLeadList(sampleLeads, "c1");
     const properties = loadPropertyList(sampleProperties, "c1");
 
     const effectiveAgentId = isAdvisor ? user?.id : globalSelectedAgentId;
@@ -53,7 +55,7 @@ export default function QuickStatsBanner() {
     const convRate = leads.length > 0 ? Math.round((closingLeads / leads.length) * 100) : 0;
     const pipelineValue = isAdvisor ? 120 : 412;
 
-    setStats([
+      setStats([
       {
         label: isAdvisor ? "Mis Leads" : "Leads Activos",
         value: leads.length,
@@ -93,7 +95,8 @@ export default function QuickStatsBanner() {
         gradient: "from-amber-500 to-amber-600",
         iconBg: "bg-amber-500",
       },
-    ]);
+      ]);
+    });
   }, [isAdvisor, user, globalSelectedAgentId]);
 
   if (stats.length === 0) return null;

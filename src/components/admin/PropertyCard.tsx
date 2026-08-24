@@ -18,26 +18,34 @@ function getOperationLabel(operation: Property["operation"]) {
 
 type Props = {
   property: Property;
+  readOnly?: boolean;
 };
 
-export default function PropertyCard({ property }: Props) {
+export default function PropertyCard({ property, readOnly = false }: Props) {
   const isSale = property.operation === "sale";
+  const identity = (
+    <>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
+        <Building2 className="h-5 w-5" />
+      </div>
+
+      <div className="min-w-0">
+        <h3 className="truncate text-base font-semibold text-slate-900">{property.title}</h3>
+        <p className="mt-0.5 truncate text-sm text-slate-500">
+          {property.id} · {property.neighborhood} {property.city ? `· ${property.city}` : ""}
+        </p>
+      </div>
+    </>
+  );
 
   return (
     <tr className="group border-t border-slate-200 text-sm text-slate-700 hover:bg-slate-50/70">
       <td className="px-4 py-4 align-middle first:rounded-l-2xl last:rounded-r-2xl sm:px-5">
-        <Link href={`/admin/properties/${property.id}`} className="flex min-w-0 items-center gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
-            <Building2 className="h-5 w-5" />
-          </div>
-
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-slate-900">{property.title}</h3>
-            <p className="mt-0.5 truncate text-sm text-slate-500">
-              {property.id} · {property.neighborhood} {property.city ? `· ${property.city}` : ""}
-            </p>
-          </div>
-        </Link>
+        {readOnly ? (
+          <div className="flex min-w-0 items-center gap-4">{identity}</div>
+        ) : (
+          <Link href={`/admin/properties/${property.id}`} className="flex min-w-0 items-center gap-4">{identity}</Link>
+        )}
       </td>
 
       <td className="px-4 py-4 align-middle sm:px-5">

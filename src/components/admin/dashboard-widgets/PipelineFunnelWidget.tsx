@@ -9,6 +9,7 @@ import { useDashboardMode } from "@/lib/dashboard-context";
 import { cn } from "@/lib/utils";
 import { TrendingUp, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 type Stage = {
   key: "new" | "contacted" | "visiting" | "negotiation" | "closing";
@@ -32,12 +33,14 @@ export default function PipelineFunnelWidget() {
   const [allLeads, setAllLeads] = useState<ReturnType<typeof loadLeadList>>([]);
 
   useEffect(() => {
-    let leads = loadLeadList(sampleLeads, "c1");
-    const effectiveAgentId = isAdvisor ? user?.id : globalSelectedAgentId;
-    if (effectiveAgentId && effectiveAgentId !== "all") {
-      leads = leads.filter((l) => l.agentId === effectiveAgentId);
-    }
-    setAllLeads(leads);
+    return deferEffectUpdate(() => {
+      let leads = loadLeadList(sampleLeads, "c1");
+      const effectiveAgentId = isAdvisor ? user?.id : globalSelectedAgentId;
+      if (effectiveAgentId && effectiveAgentId !== "all") {
+        leads = leads.filter((l) => l.agentId === effectiveAgentId);
+      }
+      setAllLeads(leads);
+    });
   }, [isAdvisor, user, globalSelectedAgentId]);
 
   const stageCounts = useMemo(() => {

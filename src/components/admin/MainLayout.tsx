@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
+import { isMockDataMode } from "@/lib/data-mode";
+import { FlaskConical, Loader2, ShieldAlert } from "lucide-react";
 
-import { SidebarProvider, SidebarTrigger } from "../ui/sidebar";
+import { SidebarProvider } from "../ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/Sidebar";
 import { AdminNavbar } from "@/components/admin/AdminNavbar";
 
@@ -14,15 +16,33 @@ type Props = {
 };
 
 export default function MainLayout({ children }: Props) {
-    const [collapsed, setCollapsed] = useState(false);
     const pathname = usePathname();
-    const { currentUser } = useAuth();
+    const router = useRouter();
+    const { currentUser, isLoaded, invalidateSession } = useAuth();
+    const currentUserId = currentUser?.id;
+    const apiRouteSupported = ["/admin", "/admin/properties", "/admin/desarrollos"].includes(pathname);
 
     useEffect(() => {
+        if (!isLoaded) return;
+
+        if (!currentUser) {
+            router.replace("/login");
+            return;
+        }
+
+        if (!isMockDataMode && currentUser.source !== "api") {
+            invalidateSession();
+            router.replace("/login");
+        }
+    }, [currentUser, invalidateSession, isLoaded, router]);
+
+    useEffect(() => {
+        if (!isMockDataMode || !currentUserId) return;
+
         try {
             const channel = new BroadcastChannel("everprop_events");
             channel.onmessage = (event) => {
-                if (event.data?.type === "LEAD_REASSIGNED" && event.data?.targetAgentId === currentUser?.id) {
+                if (event.data?.type === "LEAD_REASSIGNED" && event.data?.targetAgentId === currentUserId) {
                     toast.info(`Nuevo lead asignado: ${event.data.leadName}`, {
                         position: "top-center",
                         duration: 5000,
@@ -33,10 +53,10 @@ export default function MainLayout({ children }: Props) {
         } catch (e) {
             console.error(e);
         }
-    }, [currentUser?.id]);
+    }, [currentUserId]);
 
     useEffect(() => {
-        if (pathname !== "/admin") {
+        if (!isMockDataMode || pathname !== "/admin") {
             return;
         }
 
@@ -71,6 +91,15 @@ export default function MainLayout({ children }: Props) {
         };
     }, [pathname]);
 
+    if (!isLoaded || !currentUser || (!isMockDataMode && currentUser.source !== "api")) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white" role="status">
+                <Loader2 className="mr-3 h-5 w-5 animate-spin text-blue-400" aria-hidden="true" />
+                Verificando sesión…
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen overflow-x-hidden bg-slate-50">
             <SidebarProvider defaultOpen={false}>
@@ -79,7 +108,33 @@ export default function MainLayout({ children }: Props) {
                     <div className="flex min-w-0 flex-1 flex-col">
                         <AdminNavbar />
                         <main data-admin-scroll-container="true" className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth bg-slate-50 p-3 sm:p-4 md:p-6">
-                            <div className="mx-auto w-full max-w-[120rem]">{children}</div>
+                            <div className="mx-auto w-full max-w-[120rem] space-y-4">
+                                {isMockDataMode && (
+                                    <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="note">
+                                        <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+                                        <div>
+                                            <p className="font-bold">QA visual mock · datos no reales</p>
+                                            <p className="mt-0.5 text-xs text-amber-800">Este entorno usa muestras locales y no confirma operaciones en EverProp.</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!isMockDataMode && !apiRouteSupported ? (
+                                    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" role="status">
+                                        <div className="flex items-start gap-4">
+                                            <div className="rounded-2xl bg-slate-100 p-3 text-slate-600">
+                                                <ShieldAlert className="h-6 w-6" aria-hidden="true" />
+                                            </div>
+                                            <div>
+                                                <h1 className="text-xl font-bold text-slate-900">Módulo no habilitado en modo API</h1>
+                                                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                                                    Esta pantalla todavía depende de datos mock y fue bloqueada para que ninguna muestra se presente como información real. No se inventaron endpoints ni operaciones.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </section>
+                                ) : children}
+                            </div>
                         </main>
                     </div>
                 </div>

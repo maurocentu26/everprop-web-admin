@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { type Project, type Property, projects as sampleProjects, properties as sampleProperties } from "@/data/admin-sample";
 import { loadProjectList, loadPropertyList } from "@/lib/admin-storage";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 import ProjectsOverviewWidget from "./dashboard-widgets/ProjectsOverviewWidget";
 import GlobalInventoryWidget from "./dashboard-widgets/GlobalInventoryWidget";
@@ -14,9 +15,11 @@ export default function EnterpriseDashboard({ companyId = "c1" }: { companyId?: 
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setProjects(loadProjectList(sampleProjects, companyId));
-    setProperties(loadPropertyList(sampleProperties, companyId));
-    setHydrated(true);
+    return deferEffectUpdate(() => {
+      setProjects(loadProjectList(sampleProjects, companyId));
+      setProperties(loadPropertyList(sampleProperties, companyId));
+      setHydrated(true);
+    });
   }, [companyId]);
 
   // Widgets data logic

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Store, Car, CheckCircle2, Clock } from "lucide-react";
 import { type Property, properties as sampleProperties } from "@/data/admin-sample";
 import { loadPropertyList } from "@/lib/admin-storage";
+import { deferEffectUpdate } from "@/lib/deferred-effect";
 import { cn } from "@/lib/utils";
 
 export default function CommercialAssetsPage() {
@@ -11,8 +12,10 @@ export default function CommercialAssetsPage() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    setProperties(loadPropertyList(sampleProperties, "c1"));
-    setIsLoaded(true);
+    return deferEffectUpdate(() => {
+      setProperties(loadPropertyList(sampleProperties, "c1"));
+      setIsLoaded(true);
+    });
   }, []);
 
   if (!isLoaded) {
