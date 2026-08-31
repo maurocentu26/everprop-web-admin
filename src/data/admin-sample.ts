@@ -22,7 +22,7 @@ export type Project = {
   };
   totalUnits: number;
   description?: string;
-  masterplanImage?: string;
+  coverImage?: string;
 };
 
 export type Visit = {
@@ -98,7 +98,7 @@ export const projects: Project[] = [
     location: { city: 'Perico', province: 'Jujuy' },
     totalUnits: 40,
     description: 'Exclusivo loteo residencial con vistas a los cerros.',
-    masterplanImage: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600&auto=format&fit=crop'
+    coverImage: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600&auto=format&fit=crop'
   },
   {
     id: 'proj-torre-bellomo',
@@ -110,7 +110,7 @@ export const projects: Project[] = [
     location: { city: 'San Salvador de Jujuy', province: 'Jujuy', address: 'Belgrano 1234' },
     totalUnits: 45,
     description: 'Torre de lujo de 15 pisos en el centro de la ciudad.',
-    masterplanImage: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=600&auto=format&fit=crop'
+    coverImage: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=600&auto=format&fit=crop'
   },
   {
     id: 'proj-shopping',
@@ -122,7 +122,7 @@ export const projects: Project[] = [
     location: { city: 'San Salvador de Jujuy', province: 'Jujuy', address: 'San Martín 500' },
     totalUnits: 30,
     description: 'Paseo comercial de primer nivel.',
-    masterplanImage: 'https://images.unsplash.com/photo-1519999482648-25049ddd37b1?q=80&w=600&auto=format&fit=crop'
+    coverImage: 'https://images.unsplash.com/photo-1519999482648-25049ddd37b1?q=80&w=600&auto=format&fit=crop'
   }
 ];
 

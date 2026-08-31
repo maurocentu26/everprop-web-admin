@@ -34,7 +34,7 @@ export default function DesarrollosPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
             <HardHat className="h-8 w-8 text-blue-600" /> 
-            Desarrollos y Masterplans
+            Proyectos y Desarrollos
           </h1>
           <p className="text-slate-500 mt-1">Gestión de loteos, barrios y edificios en pozo.</p>
         </div>
@@ -57,9 +57,9 @@ export default function DesarrollosPage() {
               <div className="group rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col h-full cursor-pointer hover:-translate-y-1">
                 {/* Image Header */}
                 <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
-                  {project.masterplanImage ? (
+                  {project.coverImage ? (
                     <img 
-                      src={project.masterplanImage} 
+                      src={project.coverImage} 
                       alt={project.name} 
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
