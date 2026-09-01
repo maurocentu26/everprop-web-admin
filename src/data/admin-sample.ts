@@ -9,6 +9,21 @@ export type ProjectType = 'land_development' | 'building' | 'commercial';
 export type ProjectStatus = 'planning' | 'pre_sale' | 'under_construction' | 'completed';
 export type LeadInterestCategory = 'loteo' | 'local' | 'cochera' | 'tradicional';
 
+// Modelo local del panel. El contrato definitivo del backend queda pendiente
+// de confirmación; por eso los campos históricos de Lead se conservan.
+export type LeadInterest = {
+  id: string;
+  companyId: string;
+  category?: LeadInterestCategory;
+  projectId?: string;
+  propertyId?: string;
+  unitId?: string;
+  preferences?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Project = {
   id: string;
   companyId: string;
@@ -82,6 +97,7 @@ export type Lead = {
   email?: string;
   interestCategory?: LeadInterestCategory;
   notes?: string;
+  interests?: LeadInterest[];
   visits?: Visit[];
   agentId?: string;
 };

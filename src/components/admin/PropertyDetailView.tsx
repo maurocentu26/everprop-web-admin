@@ -9,6 +9,12 @@ import {
 import type { Lead, Property, Visit } from "@/data/admin-sample";
 import { leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
 import { loadLeadList, loadPropertyList, saveLeadList, savePropertyList } from "@/lib/admin-storage";
+import {
+  createInterestForProperty,
+  getInterestAssetIds,
+  normalizeLeadInterests,
+  syncLeadWithInterests,
+} from "@/lib/lead-interests";
 import { Button } from "@/components/ui/button";
 import Badge from "@/components/ui/badge";
 import { useCurrentSession } from "@/hooks/use-current-session";
@@ -71,14 +77,13 @@ export default function PropertyDetailView({ propertyId }: Props) {
     // 4. Actualizamos el LEAD (añadir interés y visita)
     let nextLeads = allLeads;
     if (targetLead) {
-      const alreadyInterested = targetLead.propertyIds.includes(property.id);
-      const updatedPropertyIds = alreadyInterested 
-        ? targetLead.propertyIds 
-        : [...targetLead.propertyIds, property.id];
+      const currentInterests = normalizeLeadInterests(targetLead, allProperties);
+      const updatedInterests = getInterestAssetIds(currentInterests).includes(property.id)
+        ? currentInterests
+        : [...currentInterests, createInterestForProperty(targetLead, property)];
 
       const updatedLead: Lead = {
-        ...targetLead,
-        propertyIds: updatedPropertyIds,
+        ...syncLeadWithInterests(targetLead, updatedInterests, allProperties),
         visits: [...(targetLead.visits ?? []), nextVisit],
         lastActivity: new Date().toISOString()
       };
@@ -93,8 +98,8 @@ export default function PropertyDetailView({ propertyId }: Props) {
     setAllLeads(nextLeads);
 
     // Luego el storage
-    savePropertyList(nextProperties);
-    saveLeadList(nextLeads);
+    savePropertyList(nextProperties, property.companyId);
+    saveLeadList(nextLeads, property.companyId);
 
     toast.success("Visita agendada con éxito");
   }
@@ -119,8 +124,8 @@ export default function PropertyDetailView({ propertyId }: Props) {
     setAllProperties(nextProperties);
     setAllLeads(nextLeads);
     
-    savePropertyList(nextProperties);
-    saveLeadList(nextLeads);
+    savePropertyList(nextProperties, property.companyId);
+    saveLeadList(nextLeads, property.companyId);
     
     toast.info("Visita eliminada");
   }

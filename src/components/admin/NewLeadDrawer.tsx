@@ -47,6 +47,7 @@ import { MOCK_USERS } from "@/data/auth-sample";
 import { appendLeadToStorage, loadProjectList, loadPropertyList } from "@/lib/admin-storage";
 import { useAuth } from "@/lib/auth-context";
 import { deferEffectUpdate } from "@/lib/deferred-effect";
+import { createLeadInterest, isProjectUnit } from "@/lib/lead-interests";
 import { cn } from "@/lib/utils";
 
 export type AssetCategory = LeadInterestCategory;
@@ -210,6 +211,15 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
   const onSubmit = (data: FormValues) => {
     const trimmedName = data.name.trim();
     const projectId = selectedAsset?.projectId ?? (selectedProjectId || undefined);
+    const selectedAssetIsUnit = isProjectUnit(selectedAsset ?? undefined);
+    const firstInterest = selectedCategory || projectId || selectedAsset
+      ? createLeadInterest(companyId, {
+          category: selectedCategory ?? undefined,
+          projectId,
+          propertyId: selectedAsset && !selectedAssetIsUnit ? selectedAsset.id : undefined,
+          unitId: selectedAsset && selectedAssetIsUnit ? selectedAsset.id : undefined,
+        })
+      : undefined;
 
     const nextLead: Lead = {
       id: crypto.randomUUID(),
@@ -217,6 +227,7 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
       name: trimmedName,
       origin: data.origin,
       propertyIds: selectedAsset ? [selectedAsset.id] : [],
+      unitIds: selectedAsset && selectedAssetIsUnit ? [selectedAsset.id] : undefined,
       projectId,
       interestCategory: selectedCategory ?? undefined,
       stage: data.stage,
@@ -224,6 +235,7 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
       phone: data.phone?.trim() || undefined,
       email: data.email?.trim() || undefined,
       notes: data.notes?.trim() || undefined,
+      interests: firstInterest ? [firstInterest] : [],
       agentId: currentUser?.role === "ADVISOR" ? currentUser.id : data.agentId,
     };
 

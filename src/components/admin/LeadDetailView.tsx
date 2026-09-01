@@ -1,388 +1,276 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { 
-    ArrowLeft, Building2, ExternalLink, Plus, Search, X, CircleAlert, CircleCheck, StickyNote
-} from "lucide-react";
-import type { Lead, Property, Visit } from "@/data/admin-sample";
-import { inferLeadInterestCategory, leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
-import { loadLeadList, loadPropertyList, saveLeadList, savePropertyList, updateLeadAgent } from "@/lib/admin-storage";
-import VisitManager from "@/components/admin/VisitManager";
-import { useAuth } from "@/lib/auth-context";
-import { MOCK_USERS } from "@/data/auth-sample";
-import { Button } from "@/components/ui/button";
-import  Badge  from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { ArrowLeft, Building2, CircleAlert, CircleCheck, Edit3, ExternalLink, Layers3, Plus, StickyNote, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+
+import {
+  leads as sampleLeads,
+  projects as sampleProjects,
+  properties as sampleProperties,
+  type Lead,
+  type LeadInterest,
+  type LeadInterestCategory,
+  type Project,
+  type Property,
+  type Visit,
+} from "@/data/admin-sample";
+import { MOCK_USERS } from "@/data/auth-sample";
+import { loadLeadList, loadProjectList, loadPropertyList, saveLeadList, savePropertyList, updateLeadAgent } from "@/lib/admin-storage";
+import {
+  createInterestForProperty,
+  getInterestAssetIds,
+  getInterestPendingFields,
+  normalizeLeadInterests,
+  syncLeadWithInterests,
+} from "@/lib/lead-interests";
+import { useAuth } from "@/lib/auth-context";
 import { createNotification } from "@/lib/notifications";
 import { deferEffectUpdate } from "@/lib/deferred-effect";
+import { Button } from "@/components/ui/button";
+import Badge from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import VisitManager from "@/components/admin/VisitManager";
 import FinancingCalculator from "@/components/admin/FinancingCalculator";
+import { LeadInterestEditor } from "@/components/admin/LeadInterestEditor";
+import { LeadProfileEditor } from "@/components/admin/LeadProfileEditor";
+
+const CATEGORY_LABELS: Record<LeadInterestCategory, string> = {
+  loteo: "Loteos",
+  local: "Locales",
+  cochera: "Cocheras",
+  tradicional: "Inmobiliaria tradicional",
+};
+
+type InterestEditorState = { mode: "new" } | { mode: "edit"; interest: LeadInterest } | null;
 
 export default function LeadDetailView({ leadId }: { leadId: string }) {
   const { currentUser } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [allProperties, setAllProperties] = useState<Property[]>([]);
-  const [isLinking, setIsLinking] = useState(false);
-  const [searchProperty, setSearchProperty] = useState("");
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [pendingAgentId, setPendingAgentId] = useState<string | null>(null);
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
+  const [interestEditor, setInterestEditor] = useState<InterestEditorState>(null);
+  const [interestToDelete, setInterestToDelete] = useState<LeadInterest | null>(null);
 
   useEffect(() => {
     return deferEffectUpdate(() => {
       const initialLeads = loadLeadList(sampleLeads, "c1");
-      const initialProperties = loadPropertyList(sampleProperties, "c1");
+      const foundLead = initialLeads.find((candidate) => candidate.id === leadId) ?? null;
+      const companyId = foundLead?.companyId ?? "c1";
       setAllLeads(initialLeads);
-      setAllProperties(initialProperties);
-      setLead(initialLeads.find((l) => l.id === leadId) ?? null);
+      setAllProperties(loadPropertyList(sampleProperties, companyId));
+      setAllProjects(loadProjectList(sampleProjects, companyId));
+      setLead(foundLead);
     });
   }, [leadId]);
 
-  // --- Lógica para Vincular Propiedad ---
-  function handleLinkProperty(propId: string) {
-    if (!lead) return;
-    if (lead.propertyIds.includes(propId)) {
-        toast.error("Esta propiedad ya está vinculada.");
-        return;
-    }
-
-    const linkedProperty = allProperties.find((property) => property.id === propId);
-    const nextLead: Lead = {
-      ...lead,
-      propertyIds: [...lead.propertyIds, propId],
-      projectId: lead.projectId ?? linkedProperty?.projectId,
-      interestCategory: lead.interestCategory ?? (linkedProperty ? inferLeadInterestCategory(linkedProperty) : undefined),
-      lastActivity: new Date().toISOString()
-    };
-
-    updateLeadData(nextLead);
-    setIsLinking(false);
-    toast.success("Propiedad vinculada con éxito");
-  }
-
-  function handleUnlinkProperty(propId: string) {
-    if (!lead) return;
-    const nextLead = {
-        ...lead,
-        propertyIds: lead.propertyIds.filter(id => id !== propId)
-    };
-    updateLeadData(nextLead);
-    toast.info("Vínculo eliminado");
-  }
+  const interests = useMemo(() => lead ? normalizeLeadInterests(lead, allProperties) : [], [allProperties, lead]);
+  const projectById = useMemo(() => new Map(allProjects.map((project) => [project.id, project])), [allProjects]);
+  const propertyById = useMemo(() => new Map(allProperties.map((property) => [property.id, property])), [allProperties]);
 
   function updateLeadData(nextLead: Lead) {
-    const nextLeads = allLeads.map((l) => (l.id === nextLead.id ? nextLead : l));
+    if (!lead || nextLead.companyId !== lead.companyId) {
+      toast.error("No se puede guardar información de otra empresa.");
+      return;
+    }
+    const nextLeads = allLeads.map((candidate) => candidate.id === nextLead.id ? nextLead : candidate);
+    saveLeadList(nextLeads, nextLead.companyId);
     setAllLeads(nextLeads);
-    saveLeadList(nextLeads);
     setLead(nextLead);
   }
 
-  // --- Lógica de Visitas ---
-
-function handleScheduleVisit(visit: Visit) {
-  if (!lead) return;
-
-  const finalVisit: Visit = {
-    ...visit,
-    leadId: lead.id,
-    leadName: lead.name
-  };
-
-  const propId = visit.propertyId;
-  const currentIds = lead.propertyIds || [];
-  const updatedIds = (propId && !currentIds.includes(propId)) ? [...currentIds, propId] : currentIds;
-
-  const nextLead: Lead = {
-    ...lead,
-    propertyIds: updatedIds,
-    visits: [...(lead.visits ?? []), finalVisit],
-    lastActivity: new Date().toISOString()
-  };
-
-  let nextProperties = allProperties;
-  if (propId) {
-    const propertyToUpdate = allProperties.find(p => p.id === propId);
-    if (propertyToUpdate) {
-      const updatedProp: Property = {
-        ...propertyToUpdate,
-        visits: [...(propertyToUpdate.visits ?? []), finalVisit]
-      };
-      nextProperties = allProperties.map(p => p.id === propId ? updatedProp : p);
-    }
+  function handleSaveProfile(nextLead: Lead) {
+    updateLeadData(nextLead);
+    setProfileEditorOpen(false);
+    toast.success("Ficha del cliente actualizada");
   }
 
-  const nextLeads = allLeads.map((l) => (l.id === nextLead.id ? nextLead : l));
-  
-  setLead(nextLead);
-  setAllLeads(nextLeads);
-  setAllProperties(nextProperties);
+  function handleSaveInterest(nextInterest: LeadInterest) {
+    if (!lead || nextInterest.companyId !== lead.companyId) {
+      toast.error("El interés no pertenece a la empresa activa.");
+      return;
+    }
+    const nextInterests = interestEditor?.mode === "edit"
+      ? interests.map((interest) => interest.id === nextInterest.id ? nextInterest : interest)
+      : [...interests, nextInterest];
+    updateLeadData(syncLeadWithInterests(lead, nextInterests, allProperties));
+    setInterestEditor(null);
+    toast.success(interestEditor?.mode === "edit" ? "Interés actualizado" : "Interés agregado");
+  }
 
-  saveLeadList(nextLeads);
-  savePropertyList(nextProperties);
+  function handleDeleteInterest() {
+    if (!lead || !interestToDelete) return;
+    const nextInterests = interests.filter((interest) => interest.id !== interestToDelete.id);
+    updateLeadData(syncLeadWithInterests(lead, nextInterests, allProperties));
+    setInterestToDelete(null);
+    toast.success("Interés eliminado", { description: `${lead.name} continúa registrado y conserva sus demás intereses.` });
+  }
 
-  toast.success("Visita agendada y sincronizada con la propiedad");
-}
+  function handleScheduleVisit(visit: Visit) {
+    if (!lead) return;
+    const finalVisit: Visit = { ...visit, leadId: lead.id, leadName: lead.name };
+    const propertyId = visit.propertyId;
+    let nextInterests = interests;
+    if (propertyId && !getInterestAssetIds(interests).includes(propertyId)) {
+      const property = allProperties.find((candidate) => candidate.id === propertyId);
+      if (property) nextInterests = [...interests, createInterestForProperty(lead, property)];
+    }
+    const syncedLead = syncLeadWithInterests(lead, nextInterests, allProperties);
+    const nextLead: Lead = { ...syncedLead, visits: [...(lead.visits ?? []), finalVisit], lastActivity: new Date().toISOString() };
+    const nextProperties = propertyId
+      ? allProperties.map((property) => property.id === propertyId ? { ...property, visits: [...(property.visits ?? []), finalVisit] } : property)
+      : allProperties;
+    const nextLeads = allLeads.map((candidate) => candidate.id === nextLead.id ? nextLead : candidate);
+    setLead(nextLead);
+    setAllLeads(nextLeads);
+    setAllProperties(nextProperties);
+    saveLeadList(nextLeads, lead.companyId);
+    savePropertyList(nextProperties, lead.companyId);
+    toast.success("Visita agendada y sincronizada con la propiedad");
+  }
 
   function handleReassignAgentConfirmed() {
     if (!lead || !pendingAgentId) return;
-    const nextLeads = updateLeadAgent(lead.id, pendingAgentId, allLeads);
+    const nextLeads = updateLeadAgent(lead.id, pendingAgentId, allLeads, lead.companyId);
     setAllLeads(nextLeads);
-    setLead(nextLeads.find(l => l.id === lead.id) ?? null);
-    
+    setLead(nextLeads.find((candidate) => candidate.id === lead.id) ?? null);
     try {
       const channel = new BroadcastChannel("everprop_events");
-      channel.postMessage({
-        type: "LEAD_REASSIGNED",
-        targetAgentId: pendingAgentId,
-        leadName: lead.name
-      });
+      channel.postMessage({ type: "LEAD_REASSIGNED", targetAgentId: pendingAgentId, leadName: lead.name });
       channel.close();
-      
-      createNotification(
-        pendingAgentId, 
-        `Se te ha reasignado el lead "${lead.name}"`
-      );
-    } catch (e) {
-      console.error(e);
+      createNotification(pendingAgentId, `Se te ha reasignado el lead "${lead.name}"`);
+    } catch (error) {
+      console.error(error);
     }
-    
     setPendingAgentId(null);
     toast.success("Asesor reasignado");
   }
 
-  const filteredAvailableProps = useMemo(() => {
-    return allProperties.filter(p => 
-        !lead?.propertyIds.includes(p.id) && 
-        p.title.toLowerCase().includes(searchProperty.toLowerCase())
-    ).slice(0, 5);
-  }, [allProperties, lead, searchProperty]);
-
   if (!lead) return null;
 
-  const primaryProperty = allProperties.find((property) => property.id === lead.propertyIds[0]);
-  const knownCategory = lead.interestCategory ?? (primaryProperty ? inferLeadInterestCategory(primaryProperty) : undefined);
-  const pendingData = [
+  const generalPendingData = [
     !lead.phone ? "Teléfono" : null,
     !lead.email ? "Email" : null,
-    !knownCategory ? "Categoría de interés" : null,
-    !lead.projectId ? "Proyecto (si corresponde)" : null,
-    lead.propertyIds.length === 0 ? "Propiedad de interés" : null,
-    !lead.notes ? "Notas / preferencias" : null,
+    !lead.notes ? "Notas generales" : null,
+    interests.length === 0 ? "Interés inmobiliario" : null,
   ].filter((item): item is string => item !== null);
+  const interestAssetIds = getInterestAssetIds(interests);
+  const primaryProperty = interestAssetIds[0]
+    ? propertyById.get(interestAssetIds[0])
+    : undefined;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12">
-      <Link href="/admin#leads" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600">
-        <ArrowLeft className="h-4 w-4" /> Volver al Pipeline
+    <div className="mx-auto w-full max-w-[120rem] space-y-6 pb-12">
+      <Link href="/admin#leads" className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-base font-medium text-slate-600 hover:bg-slate-100 hover:text-blue-700">
+        <ArrowLeft className="size-5" aria-hidden="true" /> Volver al pipeline
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                <div className="flex gap-6 items-start">
-                    <Avatar className="h-20 w-20 rounded-2xl bg-blue-600 text-white text-2xl font-bold">
-                        <AvatarFallback>{lead.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-2">
-                        <h1 className="text-3xl font-bold text-slate-900">{lead.name}</h1>
-                        <div className="flex gap-2">
-                            <Badge variant="default">{lead.origin}</Badge>
-                            <Badge className="bg-blue-50 text-blue-700 border-none capitalize">{lead.stage}</Badge>
-                        </div>
-                        
-                        {currentUser?.role === "ADMIN" && (
-                          <div className="mt-4 flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100 w-fit">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest ml-1">Asesor Asignado:</span>
-                              <span className="text-sm font-bold text-slate-900">
-                                {lead.agentId ? MOCK_USERS.find(u => u.id === lead.agentId)?.name : "Sin asignar"}
-                              </span>
-                              <Dialog open={!!pendingAgentId} onOpenChange={(open) => { if (!open) setPendingAgentId(null); }}>
-                                <DialogTrigger className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 shadow-sm hover:bg-slate-100 hover:text-slate-900 h-6 text-[10px] ml-2 font-medium" onClick={() => setPendingAgentId(lead.agentId || "none")}>
-                                  Reasignar
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-md">
-                                  <DialogHeader>
-                                    <DialogTitle>Reasignar Asesor</DialogTitle>
-                                    <DialogDescription>Seleccioná el nuevo asesor para esta oportunidad de venta.</DialogDescription>
-                                  </DialogHeader>
-                                  <div className="py-4">
-                                    <select
-                                      value={pendingAgentId === "none" ? "" : (pendingAgentId || "")}
-                                      onChange={(e) => setPendingAgentId(e.target.value)}
-                                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    >
-                                      <option value="" disabled>Seleccionar asesor...</option>
-                                      {MOCK_USERS.filter(u => u.role === "ADVISOR").map(u => (
-                                        <option key={u.id} value={u.id}>{u.name}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                  <DialogFooter className="mt-4 flex gap-2">
-                                    <Button variant="outline" onClick={() => setPendingAgentId(null)}>Cancelar</Button>
-                                    <Button variant="default" className="bg-blue-600 hover:bg-blue-700" onClick={handleReassignAgentConfirmed} disabled={!pendingAgentId || pendingAgentId === "none" || pendingAgentId === lead.agentId}>
-                                      Confirmar Cambio
-                                    </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                          </div>
-                        )}
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 gap-4 mt-8 pt-6 border-t border-slate-50 sm:grid-cols-2">
-                    <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400">WhatsApp</p>
-                        <p className="text-sm font-medium">{lead.phone || "---"}</p>
-                    </div>
-                    <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Email</p>
-                        <p className="text-sm font-medium">{lead.email || "---"}</p>
-                    </div>
-                </div>
-
-                {pendingData.length > 0 ? (
-                  <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4" role="status">
-                    <div className="flex items-start gap-3">
-                      <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-amber-950">Información pendiente</p>
-                        <p className="mt-1 text-xs leading-5 text-amber-800">
-                          Este lead ya está registrado. Podés completar estos datos cuando estén disponibles.
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {pendingData.map((item) => (
-                            <span key={item} className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs font-medium text-amber-900">
-                              {item}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-6 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800" role="status">
-                    <CircleCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    La información principal de este lead está completa.
-                  </div>
-                )}
-
-                {lead.notes && (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      <StickyNote className="h-3.5 w-3.5" aria-hidden="true" /> Notas / Preferencias
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{lead.notes}</p>
-                  </div>
-                )}
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 lg:p-8" aria-labelledby="lead-name">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-start">
+            <Avatar className="size-20 shrink-0 rounded-2xl bg-blue-600 text-2xl font-bold text-white">
+              <AvatarFallback className="bg-blue-600 text-white">{lead.name[0]}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <h1 id="lead-name" className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">{lead.name}</h1>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge variant="default" className="px-3 py-1 text-sm">{lead.origin}</Badge>
+                <Badge className="border-0 bg-blue-50 px-3 py-1 text-sm capitalize text-blue-700">{lead.stage}</Badge>
+                <Badge className="border-0 bg-slate-100 px-3 py-1 text-sm text-slate-700">{interests.length} {interests.length === 1 ? "interés" : "intereses"}</Badge>
+              </div>
+              <div className="mt-5 grid gap-3 text-base text-slate-700 sm:grid-cols-2">
+                <p><span className="font-bold text-slate-950">Teléfono:</span> {lead.phone || "Sin informar"}</p>
+                <p><span className="font-bold text-slate-950">Email:</span> {lead.email || "Sin informar"}</p>
+              </div>
             </div>
+          </div>
+          <Button onClick={() => setProfileEditorOpen(true)} className="h-14 w-full gap-2 bg-blue-600 px-6 text-lg font-bold text-white hover:bg-blue-700 xl:w-auto">
+            <Edit3 className="size-5" aria-hidden="true" /> Completar ficha
+          </Button>
+        </div>
 
-            {/* ── Simulador de Financiación ── */}
-            {(() => {
-              const primaryProp = allProperties.find(p => p.id === lead.propertyIds[0]);
+        {currentUser?.role === "ADMIN" && (
+          <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div><p className="text-sm font-semibold text-slate-500">Asesor asignado</p><p className="mt-1 text-base font-bold text-slate-950">{lead.agentId ? MOCK_USERS.find((user) => user.id === lead.agentId)?.name : "Sin asignar"}</p></div>
+            <Dialog open={pendingAgentId !== null} onOpenChange={(open) => !open && setPendingAgentId(null)}>
+              <DialogTrigger className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-base font-semibold hover:bg-slate-100" onClick={() => setPendingAgentId(lead.agentId || "none")}>Reasignar</DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader><DialogTitle>Reasignar asesor</DialogTitle><DialogDescription>Seleccioná el nuevo asesor para esta oportunidad.</DialogDescription></DialogHeader>
+                <select value={pendingAgentId === "none" ? "" : pendingAgentId ?? ""} onChange={(event) => setPendingAgentId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-300 px-3 text-base">
+                  <option value="" disabled>Seleccionar asesor...</option>
+                  {MOCK_USERS.filter((user) => user.role === "ADVISOR").map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+                </select>
+                <DialogFooter className="mt-4 flex gap-2"><Button variant="outline" onClick={() => setPendingAgentId(null)}>Cancelar</Button><Button className="bg-blue-600 hover:bg-blue-700" onClick={handleReassignAgentConfirmed} disabled={!pendingAgentId || pendingAgentId === "none" || pendingAgentId === lead.agentId}>Confirmar cambio</Button></DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+
+        {generalPendingData.length > 0 ? (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5" role="status">
+            <div className="flex items-start gap-3"><CircleAlert className="mt-0.5 size-6 shrink-0 text-amber-700" aria-hidden="true" /><div>
+              <p className="text-base font-bold text-amber-950">Información pendiente</p>
+              <p className="mt-1 text-base leading-7 text-amber-800">El cliente ya está registrado. Estos datos pueden completarse cuando estén disponibles.</p>
+              <div className="mt-3 flex flex-wrap gap-2">{generalPendingData.map((item) => <span key={item} className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-sm font-semibold text-amber-900">{item}</span>)}</div>
+            </div></div>
+          </div>
+        ) : (
+          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-base font-semibold text-emerald-800" role="status"><CircleCheck className="size-6 shrink-0" aria-hidden="true" /> La información general del cliente está completa.</div>
+        )}
+
+        {lead.notes && <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5"><p className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500"><StickyNote className="size-4" aria-hidden="true" /> Notas generales</p><p className="mt-2 whitespace-pre-wrap text-base leading-7 text-slate-700">{lead.notes}</p></div>}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 lg:p-8" aria-labelledby="lead-interests-title">
+        <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="text-sm font-bold uppercase tracking-[0.12em] text-blue-700">Calificación comercial</p><h2 id="lead-interests-title" className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Intereses independientes</h2><p className="mt-2 max-w-3xl text-base leading-7 text-slate-600">Cada ficha conserva su propio proyecto, propiedad, unidad, preferencias y notas.</p></div>
+          <Button onClick={() => setInterestEditor({ mode: "new" })} className="h-14 w-full gap-2 bg-blue-600 px-6 text-lg font-bold text-white hover:bg-blue-700 sm:w-auto"><Plus className="size-5" aria-hidden="true" /> Agregar interés</Button>
+        </div>
+
+        {interests.length === 0 ? (
+          <div className="mt-6 flex min-h-64 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 bg-slate-50 p-7 text-center"><Layers3 className="size-11 text-slate-400" aria-hidden="true" /><h3 className="mt-4 text-xl font-bold text-slate-950">Todavía no hay intereses cargados</h3><p className="mt-2 max-w-xl text-base leading-7 text-slate-600">Podés registrar una ficha vacía y completarla durante la calificación.</p></div>
+        ) : (
+          <div className="mt-6 grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
+            {interests.map((interest, index) => {
+              const project = interest.projectId ? projectById.get(interest.projectId) : undefined;
+              const property = interest.propertyId ? propertyById.get(interest.propertyId) : undefined;
+              const unit = interest.unitId ? propertyById.get(interest.unitId) : undefined;
+              const pendingFields = getInterestPendingFields(interest);
               return (
-                <FinancingCalculator
-                  defaultPrice={primaryProp?.price}
-                  defaultCurrency={primaryProp?.currency ?? "USD"}
-                  leadName={lead.name}
-                />
+                <article key={interest.id} className="flex min-h-full flex-col rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
+                  <div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="text-sm font-bold uppercase tracking-wider text-blue-700">Interés {index + 1}</p><h3 className="mt-2 text-2xl font-bold text-slate-950">{interest.category ? CATEGORY_LABELS[interest.category] : "Sin categoría"}</h3></div><span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-700 shadow-sm"><Building2 className="size-6" aria-hidden="true" /></span></div>
+                  <dl className="mt-5 space-y-3 text-base">
+                    <div><dt className="font-semibold text-slate-500">Proyecto</dt><dd className="mt-1 font-bold text-slate-900">{project?.name || "Sin informar"}</dd></div>
+                    <div><dt className="font-semibold text-slate-500">Propiedad</dt><dd className="mt-1 font-bold text-slate-900">{property?.title || "Sin informar"}</dd></div>
+                    <div><dt className="font-semibold text-slate-500">Unidad</dt><dd className="mt-1 font-bold text-slate-900">{unit ? `${unit.unitNumber || unit.title}${unit.sectorName ? ` · ${unit.sectorName}` : ""}` : "Sin informar"}</dd></div>
+                  </dl>
+                  <div className="mt-5 space-y-3 border-t border-slate-200 pt-5"><div><p className="text-sm font-semibold text-slate-500">Preferencias</p><p className="mt-1 whitespace-pre-wrap text-base leading-7 text-slate-800">{interest.preferences || "Sin informar"}</p></div><div><p className="text-sm font-semibold text-slate-500">Notas</p><p className="mt-1 whitespace-pre-wrap text-base leading-7 text-slate-800">{interest.notes || "Sin informar"}</p></div></div>
+                  <div className="mt-5"><p className="text-sm font-bold text-amber-800">Datos sin informar</p><div className="mt-2 flex flex-wrap gap-2">{pendingFields.length > 0 ? pendingFields.map((field) => <span key={field} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-sm font-medium text-amber-900">{field}</span>) : <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-medium text-emerald-800">Ficha completa</span>}</div><p className="mt-2 text-sm leading-6 text-slate-500">Algunos datos pueden no corresponder; nunca bloquean la ficha.</p></div>
+                  <div className="mt-auto grid grid-cols-2 gap-3 pt-6"><Button variant="outline" onClick={() => setInterestEditor({ mode: "edit", interest })} className="h-12 gap-2 text-base font-semibold"><Edit3 className="size-4" aria-hidden="true" /> Editar</Button><Button variant="outline" onClick={() => setInterestToDelete(interest)} className="h-12 gap-2 border-rose-200 text-base font-semibold text-rose-700 hover:bg-rose-50 hover:text-rose-800"><Trash2 className="size-4" aria-hidden="true" /> Eliminar</Button></div>
+                  {(property || unit) && <Link href={`/admin/properties/${(unit ?? property)?.id}`} className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl text-base font-semibold text-blue-700 hover:bg-blue-50">Ver activo <ExternalLink className="size-4" aria-hidden="true" /></Link>}
+                </article>
               );
-            })()}
+            })}
+          </div>
+        )}
+      </section>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-8">
-                <VisitManager
-                    title="Gestión de Visitas"
-                    subtitle="Agendá citas para cualquiera de sus propiedades de interés."
-                    visits={lead.visits ?? []}
-                    onSchedule={handleScheduleVisit}
-                    defaultGuestName={lead.name}
-                    defaultPhone={lead.phone}
-                    defaultEmail={lead.email}
-                    propertyOptions={allProperties.filter(p => lead.propertyIds.includes(p.id))}
-                />
-            </div>
-        </div>
-
-        {/* Columna Derecha: Intereses (Propiedades) */}
-        <div className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                        <Building2 className="h-3 w-3" /> Propiedades de Interés
-                    </h3>
-                    
-                    {/* MODAL PARA VINCULAR */}
-                    <Dialog open={isLinking} onOpenChange={setIsLinking}>
-                        <DialogTrigger className="h-8 w-8 rounded-full border border-slate-200 bg-white hover:bg-blue-50 flex items-center justify-center">
-                            <Plus className="h-4 w-4"/>
-                        </DialogTrigger>
-                        <DialogContent className="rounded-3xl">
-                            <DialogHeader>
-                                <DialogTitle>Vincular Propiedad</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 pt-4">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                                    <Input 
-                                        placeholder="Buscar por título o barrio..." 
-                                        className="pl-9"
-                                        value={searchProperty}
-                                        onChange={(e) => setSearchProperty(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    {filteredAvailableProps.map(p => (
-                                        <button 
-                                            key={p.id}
-                                            onClick={() => handleLinkProperty(p.id)}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all text-left group"
-                                        >
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-700">{p.title}</p>
-                                                <p className="text-[10px] text-slate-500">{p.neighborhood}</p>
-                                            </div>
-                                            <Plus className="h-4 w-4 text-slate-300 group-hover:text-blue-600" />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-
-                <div className="space-y-3">
-                    {lead.propertyIds.length === 0 && (
-                        <p className="text-xs text-slate-400 italic text-center py-8">No hay propiedades vinculadas</p>
-                    )}
-                    {lead.propertyIds.map(pId => {
-                        const p = allProperties.find(item => item.id === pId);
-                        if (!p) return null;
-                        return (
-                            <div key={p.id} className="group relative flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                                <div className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                                    <Building2 size={18} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[11px] font-bold text-slate-900 truncate leading-tight">{p.title}</p>
-                                    <p className="text-[10px] text-slate-400 uppercase font-medium">{p.neighborhood}</p>
-                                </div>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Link href={`/admin/properties/${p.id}`}>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7"><ExternalLink size={12} /></Button>
-                                    </Link>
-                                    <Button onClick={() => handleUnlinkProperty(p.id)} variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600"><X size={12} /></Button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        </div>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <FinancingCalculator defaultPrice={primaryProperty?.price} defaultCurrency={primaryProperty?.currency ?? "USD"} leadName={lead.name} />
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><VisitManager title="Gestión de visitas" subtitle="Agendá citas para cualquiera de sus activos de interés." visits={lead.visits ?? []} onSchedule={handleScheduleVisit} defaultGuestName={lead.name} defaultPhone={lead.phone} defaultEmail={lead.email} propertyOptions={allProperties.filter((property) => interestAssetIds.includes(property.id))} /></section>
       </div>
+
+      {profileEditorOpen && <LeadProfileEditor key={lead.lastActivity} lead={lead} onClose={() => setProfileEditorOpen(false)} onSave={handleSaveProfile} />}
+      {interestEditor && <LeadInterestEditor key={interestEditor.mode === "edit" ? interestEditor.interest.id : "new-interest"} companyId={lead.companyId} interest={interestEditor.mode === "edit" ? interestEditor.interest : undefined} projects={allProjects} properties={allProperties} onClose={() => setInterestEditor(null)} onSave={handleSaveInterest} />}
+
+      <Dialog open={Boolean(interestToDelete)} onOpenChange={(open) => !open && setInterestToDelete(null)}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Eliminar este interés</DialogTitle><DialogDescription>Se quitará solamente esta ficha. El cliente y sus demás intereses no serán eliminados.</DialogDescription></DialogHeader><DialogFooter className="mt-4 gap-2"><Button variant="outline" onClick={() => setInterestToDelete(null)}>Cancelar</Button><Button variant="destructive" onClick={handleDeleteInterest}>Eliminar interés</Button></DialogFooter></DialogContent>
+      </Dialog>
     </div>
   );
 }

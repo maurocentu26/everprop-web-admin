@@ -57,39 +57,94 @@ export function appendLeadToStorage(nextLead: Lead, seed: Lead[], companyId: str
 }
 
 export function appendPropertyToStorage(nextProperty: Property, seed: Property[], companyId: string) {
-  const current = loadPropertyList(seed, companyId);
+  if (nextProperty.companyId !== companyId) {
+    throw new Error("La propiedad no pertenece a la empresa activa.");
+  }
+
+  const stored = readList<Property>(ADMIN_STORAGE_KEYS.properties);
+  const source = stored.length > 0 ? stored : seed;
+  const current = source.filter((property) => property.companyId === companyId);
+  const otherCompanyProperties = source.filter((property) => property.companyId !== companyId);
   const next = [...current, nextProperty];
-  window.localStorage.setItem(ADMIN_STORAGE_KEYS.properties, JSON.stringify(next));
+  window.localStorage.setItem(
+    ADMIN_STORAGE_KEYS.properties,
+    JSON.stringify([...otherCompanyProperties, ...next]),
+  );
   return next;
 }
 
 export function appendProjectToStorage(nextProject: Project, seed: Project[], companyId: string) {
-  const current = loadProjectList(seed, companyId);
+  if (nextProject.companyId !== companyId) {
+    throw new Error("El proyecto no pertenece a la empresa activa.");
+  }
+
+  const stored = readList<Project>(ADMIN_STORAGE_KEYS.projects);
+  const source = stored.length > 0 ? stored : seed;
+  const current = source.filter((project) => project.companyId === companyId);
+  const otherCompanyProjects = source.filter((project) => project.companyId !== companyId);
   const next = [...current, nextProject];
-  window.localStorage.setItem(ADMIN_STORAGE_KEYS.projects, JSON.stringify(next));
+  window.localStorage.setItem(
+    ADMIN_STORAGE_KEYS.projects,
+    JSON.stringify([...otherCompanyProjects, ...next]),
+  );
   return next;
 }
 
 export function updateLeadAgent(leadId: string, agentId: string, seed: Lead[], companyId: string = "c1") {
-  const current = loadLeadList(seed, companyId);
+  const stored = readList<Lead>(ADMIN_STORAGE_KEYS.leads);
+  const source = stored.length > 0 ? stored : seed;
+  const current = source.filter((lead) => lead.companyId === companyId);
+  const otherCompanyLeads = source.filter((lead) => lead.companyId !== companyId);
   const next = current.map(lead => lead.id === leadId ? { ...lead, agentId } : lead);
-  window.localStorage.setItem(ADMIN_STORAGE_KEYS.leads, JSON.stringify(next));
+  window.localStorage.setItem(ADMIN_STORAGE_KEYS.leads, JSON.stringify([...otherCompanyLeads, ...next]));
   return next;
 }
 
-export function saveLeadList(list: Lead[]) {
+export function saveLeadList(list: Lead[], companyId?: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ADMIN_STORAGE_KEYS.leads, JSON.stringify(list));
+
+  const targetCompanyIds = new Set(companyId ? [companyId] : list.map((lead) => lead.companyId));
+  if (companyId && list.some((lead) => lead.companyId !== companyId)) {
+    throw new Error("La lista contiene leads de otra empresa.");
+  }
+
+  const stored = readList<Lead>(ADMIN_STORAGE_KEYS.leads);
+  const otherCompanyLeads = stored.filter((lead) => !targetCompanyIds.has(lead.companyId));
+  window.localStorage.setItem(ADMIN_STORAGE_KEYS.leads, JSON.stringify([...otherCompanyLeads, ...list]));
 }
 
-export function savePropertyList(list: Property[]) {
+export function savePropertyList(list: Property[], companyId?: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ADMIN_STORAGE_KEYS.properties, JSON.stringify(list));
+
+  const targetCompanyIds = new Set(companyId ? [companyId] : list.map((property) => property.companyId));
+  if (companyId && list.some((property) => property.companyId !== companyId)) {
+    throw new Error("La lista contiene propiedades de otra empresa.");
+  }
+
+  const stored = readList<Property>(ADMIN_STORAGE_KEYS.properties);
+  const otherCompanyProperties = stored.filter(
+    (property) => !targetCompanyIds.has(property.companyId),
+  );
+  window.localStorage.setItem(
+    ADMIN_STORAGE_KEYS.properties,
+    JSON.stringify([...otherCompanyProperties, ...list]),
+  );
 }
 
-export function saveProjectList(list: Project[]) {
+export function saveProjectList(list: Project[], companyId?: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ADMIN_STORAGE_KEYS.projects, JSON.stringify(list));
+
+  const targetCompanyIds = new Set(companyId ? [companyId] : list.map((project) => project.companyId));
+  if (companyId && list.some((project) => project.companyId !== companyId)) {
+    throw new Error("La lista contiene proyectos de otra empresa.");
+  }
+
+  const stored = readList<Project>(ADMIN_STORAGE_KEYS.projects);
+  const otherCompanyProjects = stored.filter((project) => !targetCompanyIds.has(project.companyId));
+  window.localStorage.setItem(
+    ADMIN_STORAGE_KEYS.projects,
+    JSON.stringify([...otherCompanyProjects, ...list]),
+  );
 }
 
 export function removeVisitById(visitId: string, seedLeads: Lead[], seedProperties: Property[], companyId = "c1") {
@@ -101,8 +156,8 @@ export function removeVisitById(visitId: string, seedLeads: Lead[], seedProperti
   const nextLeads = leads.map((lead) => ({ ...lead, visits: (lead.visits ?? []).filter((v) => v.id !== visitId) }));
   const nextProperties = properties.map((prop) => ({ ...prop, visits: (prop.visits ?? []).filter((v) => v.id !== visitId) }));
 
-  window.localStorage.setItem(ADMIN_STORAGE_KEYS.leads, JSON.stringify(nextLeads));
-  window.localStorage.setItem(ADMIN_STORAGE_KEYS.properties, JSON.stringify(nextProperties));
+  saveLeadList(nextLeads, companyId);
+  savePropertyList(nextProperties, companyId);
 
   return { leads: nextLeads, properties: nextProperties };
 }
