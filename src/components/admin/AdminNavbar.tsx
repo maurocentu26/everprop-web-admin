@@ -3,26 +3,25 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useAnimation } from "framer-motion";
-import { Bell, Download, Plus } from "lucide-react";
+import { Bell, Download, Menu, Plus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AdminFullscreenMenu } from "@/components/admin/AdminFullscreenMenu";
 import { NewLeadDrawer } from "@/components/admin/NewLeadDrawer";
 import { GlobalSearch } from "@/components/admin/navbar/GlobalSearch";
 import { useCurrentSession } from "@/hooks/use-current-session";
-import { useAuth } from "@/lib/auth-context";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { isMockDataMode } from "@/lib/data-mode";
 import { loadNotifications, markAllAsRead, type AppNotification } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 type Props = {
   companyName?: string;
@@ -32,7 +31,10 @@ type Props = {
 export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
   const router = useRouter();
   const { user, isEngineer } = useCurrentSession();
-  const { logout } = useAuth();
+  const { toggleSidebar } = useSidebar();
+  const isMobile = useIsMobile();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLeadDrawerOpen, setIsLeadDrawerOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const bellControls = useAnimation();
@@ -83,10 +85,25 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
 
   return (
     <>
-      <header className={cn("z-30 flex flex-col gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-4", className)}>
+      <header className={cn("z-30 flex flex-col gap-3 border-b border-border bg-card px-3 py-3 text-card-foreground sm:px-4", className)}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <SidebarTrigger />
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                if (isMobile) {
+                  setIsMenuOpen(true);
+                  return;
+                }
+                toggleSidebar();
+              }}
+              className="h-10 shrink-0 gap-2 px-3 text-sm font-semibold"
+              aria-label="Abrir menú principal"
+            >
+              <Menu className="h-5 w-5" aria-hidden="true" />
+              <span className="hidden sm:inline">Menú</span>
+            </Button>
             <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1 text-sm font-medium text-black">
               <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-blue-600 text-xs font-bold text-white">IA</div>
               <div className="flex max-w-25 flex-col sm:max-w-none">
@@ -128,8 +145,12 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
                   </Button>
                 )}
 
-                <DropdownMenu onOpenChange={(open) => open && handleMarkAsRead()}>
-                  <DropdownMenuTrigger
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleMarkAsRead();
+                    setIsNotificationsOpen(true);
+                  }}
                     className="relative inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-slate-100"
                     aria-label="Notificaciones mock"
                   >
@@ -145,61 +166,83 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
                         <span className="text-[8px] font-black leading-none text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>
                       </motion.span>
                     )}
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-72" align="end">
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel className="border-b pb-2 font-normal">
-                        <p className="text-sm font-bold">Notificaciones mock</p>
-                      </DropdownMenuLabel>
-                    </DropdownMenuGroup>
-                    <div className="max-h-64 overflow-y-auto py-1">
-                      {notifications.length === 0 ? (
-                        <div className="px-4 py-3 text-center text-sm text-slate-500">No hay notificaciones</div>
-                      ) : (
-                        notifications.map((notification) => (
-                          <div
-                            key={notification.id}
-                            className={cn("border-b px-4 py-3 text-sm last:border-0", notification.read ? "opacity-60" : "bg-blue-50/50")}
-                          >
-                            <p className="font-medium leading-tight text-slate-800">{notification.message}</p>
-                            <p className="mt-1 text-xs text-slate-400">
-                              {new Date(notification.timestamp).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                </button>
               </>
             )}
 
-            <DropdownMenu>
-              <DropdownMenuTrigger className="relative ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500">
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(true)}
+              className="relative ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Abrir menú de usuario"
+            >
                 <Avatar className="h-full w-full">
                   <AvatarFallback className="bg-blue-600 text-xs font-bold text-white">{userInfo.initials}</AvatarFallback>
                 </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{userInfo.name}</p>
-                      <p className="text-xs leading-none text-slate-500">{userInfo.role}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => void logout()} className="cursor-pointer text-rose-600">
-                  Cerrar Sesión
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            </button>
           </div>
         </div>
 
-        {isMockDataMode && <GlobalSearch />}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {isMockDataMode && (
+            <div className="min-w-0 flex-1">
+              <GlobalSearch />
+            </div>
+          )}
+          <ThemeToggle className="w-full shrink-0 sm:w-auto" />
+        </div>
       </header>
+
+      <AdminFullscreenMenu open={isMenuOpen} onOpenChange={setIsMenuOpen} />
+
+      <Dialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+        <DialogContent fullScreen className="flex bg-slate-50" showCloseButton>
+          <div className="flex h-dvh min-h-0 w-full flex-col">
+            <header className="shrink-0 border-b border-slate-200 bg-white px-4 pb-5 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 lg:px-12">
+              <div className="mx-auto w-full max-w-[min(94vw,2800px)] pr-16">
+                <DialogTitle className="text-2xl font-bold text-slate-950 sm:text-3xl">Notificaciones</DialogTitle>
+                <DialogDescription className="mt-2 text-base text-slate-600">
+                  Actividad reciente de tu cuenta de EverProp.
+                </DialogDescription>
+              </div>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
+              <div className="mx-auto w-full max-w-[min(94vw,2800px)]">
+                {notifications.length === 0 ? (
+                  <div className="flex min-h-[50vh] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                    <Bell className="h-10 w-10 text-slate-300" aria-hidden="true" />
+                    <p className="mt-4 text-xl font-bold text-slate-900">No hay notificaciones</p>
+                    <p className="mt-2 text-base text-slate-500">Cuando haya novedades aparecerán en esta pantalla.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {notifications.map((notification) => (
+                      <article
+                        key={notification.id}
+                        className={cn(
+                          "min-h-36 rounded-2xl border bg-white p-5 shadow-sm",
+                          notification.read ? "border-slate-200" : "border-blue-200 bg-blue-50/60",
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className={cn("mt-1 size-3 shrink-0 rounded-full", notification.read ? "bg-slate-300" : "bg-blue-600")} />
+                          <div>
+                            <p className="text-base font-semibold leading-7 text-slate-900">{notification.message}</p>
+                            <p className="mt-3 text-sm font-medium text-slate-500">
+                              {new Date(notification.timestamp).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {isMockDataMode && <NewLeadDrawer open={isLeadDrawerOpen} onOpenChange={setIsLeadDrawerOpen} />}
     </>

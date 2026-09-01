@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Badge from "@/components/ui/badge";
 import { useCurrentSession } from "@/hooks/use-current-session";
-import { MapPin, Maximize, DollarSign, UserPlus, Info } from "lucide-react";
+import { MapPin, Maximize, DollarSign, UserPlus, Info, X } from "lucide-react";
 import Link from "next/link";
 
 type InventoryMatrixProps = {
@@ -70,7 +70,6 @@ export default function InventoryMatrix({ properties, isLoading }: InventoryMatr
                 {units.map((unit) => {
                   const isAvailable = !unit.status || unit.status === "available";
                   const isReserved = unit.status === "reserved";
-                  const isSold = unit.status === "sold";
 
                 return (
                   <button
@@ -116,90 +115,114 @@ export default function InventoryMatrix({ properties, isLoading }: InventoryMatr
         </div>
       </div>
 
-      {/* Drawer Lateral */}
+      {/* Ficha de unidad en pantalla completa */}
       <Sheet open={!!selectedUnit} onOpenChange={(open) => !open && setSelectedUnit(null)}>
-        <SheetContent className="bg-slate-50 overflow-y-auto sm:max-w-md">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="inset-0 h-dvh !w-screen !max-w-none gap-0 overflow-hidden border-0 bg-slate-50 p-0 shadow-none data-[side=right]:!left-0 data-[side=right]:!right-0 data-[side=right]:!w-screen data-[side=right]:sm:!max-w-none motion-reduce:transition-none"
+        >
           {selectedUnit && (
-            <>
-              <SheetHeader className="mb-6 text-left">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <SheetTitle className="text-2xl font-bold text-slate-900">{selectedUnit.title}</SheetTitle>
-                    <SheetDescription className="flex items-center gap-1 mt-1 text-slate-500">
-                      <MapPin className="h-3.5 w-3.5" /> {selectedUnit.neighborhood}, {selectedUnit.city}
+            <div className="flex h-dvh min-h-0 w-full flex-col">
+              <SheetHeader className="shrink-0 border-b border-slate-200 bg-white px-4 pb-5 pt-[max(1rem,env(safe-area-inset-top))] text-left sm:px-8 lg:px-12">
+                <div className="mx-auto flex w-full max-w-[min(94vw,2800px)] items-start justify-between gap-5">
+                  <div className="min-w-0">
+                    <SheetTitle className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">{selectedUnit.title}</SheetTitle>
+                    <SheetDescription className="mt-2 flex items-center gap-2 text-base text-slate-600 sm:text-lg">
+                      <MapPin className="h-5 w-5 shrink-0" aria-hidden="true" /> {selectedUnit.neighborhood}, {selectedUnit.city}
                     </SheetDescription>
                   </div>
-                  <Badge className={cn(
-                    "uppercase font-bold tracking-wider",
-                    (!selectedUnit.status || selectedUnit.status === "available") ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                    selectedUnit.status === "reserved" ? "bg-amber-100 text-amber-700 border-amber-200" :
-                    "bg-rose-100 text-rose-700 border-rose-200"
-                  )}>
-                    {(!selectedUnit.status || selectedUnit.status === "available") ? "Disponible" : selectedUnit.status === "reserved" ? "Reservado" : "Vendido"}
-                  </Badge>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSelectedUnit(null)}
+                    className="h-12 shrink-0 gap-2 px-4 text-base font-semibold sm:h-14 sm:px-5"
+                  >
+                    <X className="h-5 w-5" aria-hidden="true" />
+                    <span className="hidden sm:inline">Cerrar</span>
+                  </Button>
                 </div>
               </SheetHeader>
 
-              <div className="space-y-6">
-                {/* Info Card */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-                  <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-                    <span className="text-slate-500 text-sm font-medium">Precio</span>
-                    <span className="text-xl font-bold text-slate-900 flex items-center gap-1">
-                      <DollarSign className="h-5 w-5 text-slate-400" />
-                      {selectedUnit.price.toLocaleString('es-AR')} {selectedUnit.currency}
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-xs text-slate-400 block mb-1">Tipo</span>
-                      <span className="text-sm font-semibold text-slate-700">{selectedUnit.propertyType}</span>
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400 block mb-1">Sector / Piso</span>
-                      <span className="text-sm font-semibold text-slate-700">{selectedUnit.sectorName || "-"}</span>
-                    </div>
-                    {selectedUnit.area_m2 && (
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10">
+                <div className="mx-auto grid min-h-full w-full max-w-[min(94vw,2800px)] content-center gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)] xl:gap-8">
+                  <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 lg:p-9" aria-labelledby="unit-summary-title">
+                    <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <span className="text-xs text-slate-400 block mb-1 flex items-center gap-1"><Maximize className="h-3 w-3" /> Sup. Total</span>
-                        <span className="text-sm font-semibold text-slate-700">{selectedUnit.area_m2} m²</span>
+                        <p id="unit-summary-title" className="text-base font-semibold text-slate-500">Precio publicado</p>
+                        <p className="mt-2 flex items-center gap-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                          <DollarSign className="h-7 w-7 text-slate-400" aria-hidden="true" />
+                          {selectedUnit.price.toLocaleString("es-AR")} {selectedUnit.currency}
+                        </p>
+                      </div>
+                      <Badge className={cn(
+                        "w-fit px-4 py-2 text-sm font-bold uppercase tracking-wider",
+                        (!selectedUnit.status || selectedUnit.status === "available") ? "border-emerald-200 bg-emerald-100 text-emerald-700" :
+                        selectedUnit.status === "reserved" ? "border-amber-200 bg-amber-100 text-amber-700" :
+                        "border-rose-200 bg-rose-100 text-rose-700"
+                      )}>
+                        {(!selectedUnit.status || selectedUnit.status === "available") ? "Disponible" : selectedUnit.status === "reserved" ? "Reservado" : "Vendido"}
+                      </Badge>
+                    </div>
+
+                    <dl className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="rounded-2xl bg-slate-50 p-5">
+                        <dt className="text-base font-medium text-slate-500">Tipo</dt>
+                        <dd className="mt-2 text-xl font-bold text-slate-900">{selectedUnit.propertyType}</dd>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-5">
+                        <dt className="text-base font-medium text-slate-500">Sector / Piso</dt>
+                        <dd className="mt-2 text-xl font-bold text-slate-900">{selectedUnit.sectorName || "-"}</dd>
+                      </div>
+                      {selectedUnit.area_m2 && (
+                        <div className="rounded-2xl bg-slate-50 p-5">
+                          <dt className="flex items-center gap-2 text-base font-medium text-slate-500"><Maximize className="h-5 w-5" aria-hidden="true" /> Superficie total</dt>
+                          <dd className="mt-2 text-xl font-bold text-slate-900">{selectedUnit.area_m2} m²</dd>
+                        </div>
+                      )}
+                    </dl>
+
+                    {selectedUnit.services && (
+                      <div className="rounded-2xl border border-slate-200 p-5 sm:p-6">
+                        <h3 className="flex items-center gap-2 text-xl font-bold text-slate-900">
+                          <Info className="h-6 w-6 text-blue-600" aria-hidden="true" /> Servicios disponibles
+                        </h3>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          {selectedUnit.services.electricity && <Badge className="bg-slate-100 px-3 py-2 text-base text-slate-700">Luz eléctrica</Badge>}
+                          {selectedUnit.services.water && <Badge className="bg-slate-100 px-3 py-2 text-base text-slate-700">Agua potable</Badge>}
+                          {selectedUnit.services.gas && <Badge className="bg-slate-100 px-3 py-2 text-base text-slate-700">Gas natural</Badge>}
+                          {selectedUnit.services.sewage && <Badge className="bg-slate-100 px-3 py-2 text-base text-slate-700">Cloacas</Badge>}
+                        </div>
                       </div>
                     )}
-                  </div>
-                </div>
+                  </section>
 
-                {/* Servicios / Detalles adicionales */}
-                {selectedUnit.services && (
-                  <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
-                      <Info className="h-4 w-4 text-blue-500" /> Servicios Disponibles
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedUnit.services.electricity && <Badge className="bg-slate-100 text-slate-700">Luz Eléctrica</Badge>}
-                      {selectedUnit.services.water && <Badge className="bg-slate-100 text-slate-700">Agua Potable</Badge>}
-                      {selectedUnit.services.gas && <Badge className="bg-slate-100 text-slate-700">Gas Natural</Badge>}
-                      {selectedUnit.services.sewage && <Badge className="bg-slate-100 text-slate-700">Cloacas</Badge>}
+                  <aside className="flex flex-col justify-between gap-6 rounded-3xl bg-slate-950 p-5 text-white shadow-xl sm:p-7 lg:p-9" aria-labelledby="unit-actions-title">
+                    <div>
+                      <p className="text-base font-bold uppercase tracking-[0.12em] text-blue-300">Unidad seleccionada</p>
+                      <h3 id="unit-actions-title" className="mt-3 text-2xl font-bold sm:text-3xl">¿Qué querés hacer?</h3>
+                      <p className="mt-3 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+                        Consultá la ficha completa o vinculá esta unidad con una persona interesada.
+                      </p>
                     </div>
-                  </div>
-                )}
 
-                {/* Acciones */}
-                <div className="pt-4 flex flex-col gap-3">
-                  {!isEngineer && (
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 rounded-xl text-base font-semibold">
-                      <UserPlus className="mr-2 h-5 w-5" /> Vincular Lead (Interesado)
-                    </Button>
-                  )}
-                  
-                  <Link href={`/admin/properties/${selectedUnit.id}`} className="w-full">
-                    <Button variant="outline" className="w-full h-12 rounded-xl text-slate-700">
-                      Ver ficha completa
-                    </Button>
-                  </Link>
+                    <div className="flex flex-col gap-3">
+                      {!isEngineer && (
+                        <Button className="h-14 w-full rounded-xl bg-blue-600 text-lg font-semibold text-white hover:bg-blue-700 sm:h-16">
+                          <UserPlus className="mr-2 h-6 w-6" aria-hidden="true" /> Vincular lead interesado
+                        </Button>
+                      )}
+
+                      <Link href={`/admin/properties/${selectedUnit.id}`} className="w-full">
+                        <Button variant="outline" className="h-14 w-full rounded-xl border-slate-600 bg-slate-900 text-lg font-semibold text-white hover:bg-slate-800 hover:text-white sm:h-16">
+                          Ver ficha completa
+                        </Button>
+                      </Link>
+                    </div>
+                  </aside>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </SheetContent>
       </Sheet>

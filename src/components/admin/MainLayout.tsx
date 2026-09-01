@@ -101,13 +101,13 @@ export default function MainLayout({ children }: Props) {
     }
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-slate-50">
-            <SidebarProvider defaultOpen={false}>
+        <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+            <SidebarProvider defaultOpen>
                 <div className="flex h-screen w-full overflow-hidden">
                     <AppSidebar />
                     <div className="flex min-w-0 flex-1 flex-col">
                         <AdminNavbar />
-                        <main data-admin-scroll-container="true" className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth bg-slate-50 p-3 sm:p-4 md:p-6">
+                        <main data-admin-scroll-container="true" className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth bg-background p-3 sm:p-4 md:p-6">
                             <div className="mx-auto w-full max-w-[120rem] space-y-4">
                                 {isMockDataMode && (
                                     <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="note">

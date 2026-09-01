@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Search, Building2, ArrowRight, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Search, Building2, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { leads as sampleLeads, properties as sampleProperties, projects as sampleProjects, type Lead, type Property, type Project } from "@/data/admin-sample";
 import { loadLeadList, loadPropertyList, loadProjectList } from "@/lib/admin-storage";
 import { SearchPropertyItem } from "../SearchPropertyItem";
 import { SearchLeadItem } from "../SearchLeadItem";
 import { deferEffectUpdate } from "@/lib/deferred-effect";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import {
   InputGroup,
@@ -94,139 +99,153 @@ export function GlobalSearch() {
 
   return (
     <>
-      {/* Backdrop cuando el buscador tiene texto */}
-      {normalizedQuery && (
-        <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-20 transition-all" onClick={() => setSearchQuery("")} />
-      )}
+      <button
+        type="button"
+        onClick={() => setIsSearchFocused(true)}
+        className="flex h-11 w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-left text-sm text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30"
+        aria-label="Abrir búsqueda global"
+      >
+        <Search className="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
+        <span className="truncate">Buscar por nombre, dirección, teléfono...</span>
+      </button>
 
-      {/* BUSCADOR */}
-      <div className="relative w-full z-30">
-        <InputGroup className={cn(
-          "p-1.5 transition-all duration-200 border-slate-200",
-          normalizedQuery ? "ring-2 ring-blue-500/20 border-blue-500 shadow-lg" : ""
-        )}>
-          <InputGroupInput
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => setIsSearchFocused(true)}
-            placeholder="Buscar por nombre, dirección, teléfono..."
-            className="border-none focus-visible:ring-0"
-          />
-          <InputGroupAddon>
-            {searchQuery ? (
-              <X className="h-4 w-4 text-slate-400 cursor-pointer hover:text-slate-600" onClick={() => setSearchQuery("")} />
-            ) : (
-              <Search className="h-4 w-4 text-slate-400" />
-            )}
-          </InputGroupAddon>
-        </InputGroup>
+      <Dialog
+        open={isSearchFocused}
+        onOpenChange={(nextOpen) => {
+          setIsSearchFocused(nextOpen);
+          if (!nextOpen) setSearchQuery("");
+        }}
+      >
+        <DialogContent fullScreen className="flex bg-slate-50" showCloseButton>
+          <div className="flex h-dvh min-h-0 w-full flex-col">
+            <header className="shrink-0 border-b border-slate-200 bg-white px-4 pb-5 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 lg:px-12">
+              <div className="mx-auto w-full max-w-[min(94vw,2800px)] pr-16">
+                <DialogTitle className="text-2xl font-bold text-slate-950 sm:text-3xl">Buscar en EverProp</DialogTitle>
+                <DialogDescription className="mt-2 text-base text-slate-600">
+                  Encontrá leads, propiedades, unidades o proyectos desde un único lugar.
+                </DialogDescription>
+                <InputGroup className="mt-5 h-14 border-slate-300 bg-white shadow-sm sm:h-16">
+                  <InputGroupAddon>
+                    <Search className="h-5 w-5 text-slate-500" aria-hidden="true" />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    autoFocus
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Escribí un nombre, dirección, teléfono o proyecto..."
+                    className="border-none text-base focus-visible:ring-0 sm:text-lg"
+                  />
+                </InputGroup>
+              </div>
+            </header>
 
-        {/* RESULTADOS DE BÚSQUEDA */}
-        {normalizedQuery && (
-          <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
-            {hasSearchResults ? (
-              <div className="space-y-4 p-2">
-                {/* SECCIÓN PROYECTOS */}
-                {filteredProjects.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Proyectos / Desarrollos</h4>
-                    <div className="grid gap-1">
-                      {filteredProjects.slice(0, 3).map((p) => (
-                        <div
-                          key={p.id}
-                          onClick={() => handleSearchSelect("project", p.id)}
-                          className="flex items-center gap-3 rounded-xl p-2 cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
-                        >
-                          <div className="h-10 w-10 flex-shrink-0 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                            <Building2 className="h-5 w-5" />
-                          </div>
-                          <div className="flex flex-col flex-1 overflow-hidden">
-                            <span className="text-sm font-bold text-slate-900 truncate">{p.name}</span>
-                            <span className="text-xs text-slate-500 truncate">{p.type === 'land_development' ? 'Loteo' : p.type === 'building' ? 'Edificio' : 'Comercial'} • {p.totalUnits} unidades</span>
-                          </div>
-                        </div>
-                      ))}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
+              <div className="mx-auto min-h-full w-full max-w-[min(94vw,2800px)]">
+                {!normalizedQuery ? (
+                  <div className="flex min-h-[55vh] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                    <div className="flex size-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                      <Search className="size-8" aria-hidden="true" />
                     </div>
+                    <p className="mt-5 text-xl font-bold text-slate-900 sm:text-2xl">¿Qué necesitás encontrar?</p>
+                    <p className="mt-2 max-w-2xl text-base leading-7 text-slate-500">
+                      Los resultados aparecerán organizados por proyectos, propiedades e interesados.
+                    </p>
                   </div>
-                )}
+                ) : hasSearchResults ? (
+                  <div className="grid items-start gap-5 lg:grid-cols-3">
+                    <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                      <h2 className="mb-4 text-lg font-bold text-slate-900">Proyectos y desarrollos</h2>
+                      <div className="space-y-2">
+                        {filteredProjects.slice(0, 6).map((project) => (
+                          <button
+                            key={project.id}
+                            type="button"
+                            onClick={() => handleSearchSelect("project", project.id)}
+                            className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-transparent p-3 text-left transition-colors hover:border-slate-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30"
+                          >
+                            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                              <Building2 className="size-5" aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-base font-bold text-slate-900">{project.name}</span>
+                              <span className="block truncate text-sm text-slate-500">
+                                {project.type === "land_development" ? "Loteo" : project.type === "building" ? "Edificio" : "Comercial"} · {project.totalUnits} unidades
+                              </span>
+                            </span>
+                          </button>
+                        ))}
+                        {filteredProjects.length === 0 && <p className="py-8 text-center text-base text-slate-500">Sin proyectos coincidentes.</p>}
+                      </div>
+                    </section>
 
-                {/* SECCIÓN PROPIEDADES */}
-                {filteredProperties.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      {filteredProjects.length > 0 ? "Unidades del Desarrollo" : "Propiedades e Inventario"}
-                    </h4>
-                    <div className="grid gap-1">
-                      {filteredProperties.slice(0, 5).map((p) => (
-                        <SearchPropertyItem
-                          key={p.id}
-                          property={p}
-                          query={normalizedQuery}
-                          onSelect={(id) => handleSearchSelect("property", id)}
-                        />
-                      ))}
-                      {filteredProperties.length > 5 && (
-                        <button
-                          onClick={() => {
-                            setSearchQuery("");
-                            router.push("/admin#properties");
-                        }}
-                          className="flex w-full items-center justify-center gap-2 py-2.5 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-colors mt-1 border border-dashed border-blue-100"
-                        >
-                          Ver todos los resultados ({filteredProperties.length})
-                          <ArrowRight size={14} />
-                        </button>
-                      )}
-                    </div>
+                    <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                      <h2 className="mb-4 text-lg font-bold text-slate-900">Propiedades e inventario</h2>
+                      <div className="space-y-2">
+                        {filteredProperties.slice(0, 8).map((property) => (
+                          <SearchPropertyItem
+                            key={property.id}
+                            property={property}
+                            query={normalizedQuery}
+                            onSelect={(id) => handleSearchSelect("property", id)}
+                          />
+                        ))}
+                        {filteredProperties.length === 0 && <p className="py-8 text-center text-base text-slate-500">Sin propiedades coincidentes.</p>}
+                        {filteredProperties.length > 8 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsSearchFocused(false);
+                              setSearchQuery("");
+                              router.push("/admin#properties");
+                            }}
+                            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-base font-bold text-blue-700"
+                          >
+                            Ver todos ({filteredProperties.length}) <ArrowRight className="size-5" aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                    </section>
+
+                    <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                      <h2 className="mb-4 text-lg font-bold text-slate-900">Interesados</h2>
+                      <div className="space-y-2">
+                        {filteredLeads.slice(0, 8).map((lead) => (
+                          <SearchLeadItem
+                            key={lead.id}
+                            lead={lead}
+                            query={normalizedQuery}
+                            onSelect={(id) => handleSearchSelect("lead", id)}
+                          />
+                        ))}
+                        {filteredLeads.length === 0 && <p className="py-8 text-center text-base text-slate-500">Sin interesados coincidentes.</p>}
+                        {filteredLeads.length > 8 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsSearchFocused(false);
+                              setSearchQuery("");
+                              router.push("/admin#leads");
+                            }}
+                            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-base font-bold text-emerald-700"
+                          >
+                            Ver todos ({filteredLeads.length}) <ArrowRight className="size-5" aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                    </section>
                   </div>
-                )}
-
-                {/* SECCIÓN LEADS */}
-                {filteredLeads.length > 0 && (
-                  <div>
-                    <h4 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Interesados</h4>
-                    <div className="grid gap-1">
-                      {filteredLeads.slice(0, 5).map((l) => (
-                        <SearchLeadItem
-                          key={l.id}
-                          lead={l}
-                          query={normalizedQuery}
-                          onSelect={(id) => handleSearchSelect("lead", id)}
-                        />
-                      ))}
-                      {filteredLeads.length > 5 && (
-                        <button
-                          onClick={() => {
-                            setSearchQuery("");
-                            router.push("/admin#leads");
-                        }}
-                        className="flex w-full items-center justify-center gap-2 py-2.5 text-xs font-bold text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors mt-1 border border-dashed border-emerald-100"
-                        >
-                          Ver todos los interesados ({filteredLeads.length})
-                          <ArrowRight size={14} />
-                        </button>
-                      )}
-                    </div>
+                ) : (
+                  <div className="flex min-h-[55vh] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                    <Search className="size-12 text-slate-300" aria-hidden="true" />
+                    <p className="mt-5 text-xl font-bold text-slate-900">No encontramos resultados</p>
+                    <p className="mt-2 text-base text-slate-500">Intentá con otros términos.</p>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
-                  <Search className="h-6 w-6 text-slate-300" />
-                </div>
-                <p className="text-sm font-medium text-slate-900">No encontramos resultados</p>
-                <p className="text-xs text-slate-500 mt-1">Intentá con otros términos o filtros.</p>
-              </div>
-            )}
-            
-            {/* Footer del buscador */}
-            <div className="mt-2 border-t border-slate-100 p-2 text-center">
-               <p className="text-[10px] text-slate-400 font-medium">Presioná <span className="bg-slate-100 px-1 rounded border border-slate-200">ESC</span> para cerrar</p>
             </div>
           </div>
-        )}
-      </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -256,11 +256,12 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
     >
       <SheetContent
         side="right"
+        data-theme-panel="lead"
         showCloseButton={false}
-        className="inset-0 h-dvh !w-screen !max-w-none gap-0 border-0 bg-slate-950 p-0 text-white shadow-none data-[side=right]:!left-0 data-[side=right]:!right-0 data-[side=right]:!w-screen data-[side=right]:sm:!max-w-none"
+        className="inset-0 h-dvh !w-screen !max-w-none gap-0 border-0 bg-slate-950 p-0 text-white shadow-none data-[side=right]:!left-0 data-[side=right]:!right-0 data-[side=right]:!w-screen data-[side=right]:sm:!max-w-none motion-reduce:transition-none"
       >
-        <SheetHeader className="shrink-0 border-b border-slate-700 bg-slate-900 px-5 py-5 sm:px-8 lg:px-10">
-          <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-5">
+        <SheetHeader className="shrink-0 border-b border-slate-700 bg-slate-900 px-5 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8 lg:px-10">
+          <div className="mx-auto flex w-full max-w-[min(94vw,2800px)] items-center justify-between gap-5">
             <div className="flex min-w-0 items-center gap-4">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20 sm:h-14 sm:w-14">
                 <Sparkles size={26} aria-hidden="true" />
@@ -286,7 +287,7 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
         </SheetHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-950">
-          <form id="drawer-lead-form" onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full max-w-[1600px] p-5 sm:p-8 lg:p-10">
+          <form id="drawer-lead-form" onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full max-w-[min(94vw,2800px)] p-5 sm:p-8 lg:p-10">
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] xl:gap-8">
               <section className="space-y-6 rounded-3xl border border-slate-700 bg-slate-900 p-5 shadow-xl sm:p-7 lg:p-8" aria-labelledby="lead-basic-data">
                 <div className="flex items-start gap-4 border-b border-slate-700 pb-6">
@@ -601,8 +602,8 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
           </form>
         </div>
 
-        <SheetFooter className="shrink-0 border-t border-slate-700 bg-slate-900 px-5 py-4 sm:px-8 lg:px-10">
-          <div className="mx-auto flex w-full max-w-[1600px] flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SheetFooter className="shrink-0 border-t border-slate-700 bg-slate-900 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-8 lg:px-10">
+          <div className="mx-auto flex w-full max-w-[min(94vw,2800px)] flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Button
               type="button"
               variant="outline"

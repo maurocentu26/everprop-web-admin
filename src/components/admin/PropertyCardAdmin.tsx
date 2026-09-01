@@ -4,17 +4,18 @@ import { Building2, MapPin, BedDouble, Bath, Ruler, MoreVertical, Edit3, Eye, Tr
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Badge from "@/components/ui/badge";
-
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import type { Property } from "@/data/admin-sample";
 import Link from "next/link";
 
 interface Props {
-  property: any;
+  property: Property;
 }
 
 export default function PropertyCardAdmin({ property }: Props) {
@@ -37,24 +38,73 @@ export default function PropertyCardAdmin({ property }: Props) {
           </Badge>
         </div>
 
-        {/* Menú de Acciones Rápidas */}
+        {/* Acciones en pantalla completa */}
         <div className="absolute top-3 right-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="h-8 w-8 rounded-full bg-white/90 backdrop-blur-md border-none shadow-sm opacity-0 group-hover:opacity-100 transition-opacity flex justify-center items-center">
-                <MoreVertical className="h-4 w-4 text-slate-600" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-xl w-40">
-              <DropdownMenuItem className="gap-2 cursor-pointer">
-                <Edit3 className="h-4 w-4" /> Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600">
-                <Eye className="h-4 w-4" /> Ver Web
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 cursor-pointer text-red-600">
-                <Trash2 className="h-4 w-4" /> Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Dialog>
+            <DialogTrigger
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/70 bg-white/95 shadow-md backdrop-blur transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/40"
+              aria-label={`Abrir acciones para ${property.title}`}
+            >
+              <MoreVertical className="h-5 w-5 text-slate-700" aria-hidden="true" />
+            </DialogTrigger>
+            <DialogContent fullScreen className="flex bg-slate-50" showCloseButton>
+              <div className="flex h-dvh min-h-0 w-full flex-col">
+                <header className="shrink-0 border-b border-slate-200 bg-white px-4 pb-5 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 lg:px-12">
+                  <div className="mx-auto w-full max-w-[min(94vw,2800px)] pr-16">
+                    <DialogTitle className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">
+                      Acciones de la propiedad
+                    </DialogTitle>
+                    <DialogDescription className="mt-2 text-base leading-7 text-slate-600 sm:text-lg">
+                      {property.title} · {property.neighborhood}, {property.city}
+                    </DialogDescription>
+                  </div>
+                </header>
+
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10">
+                  <div className="mx-auto grid min-h-full w-full max-w-[min(94vw,2800px)] content-center gap-4 md:grid-cols-3 xl:gap-7">
+                    <button
+                      type="button"
+                      className="flex min-h-44 items-center gap-5 rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/40 sm:min-h-56 sm:flex-col sm:items-start sm:justify-between sm:p-8"
+                    >
+                      <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 sm:size-16">
+                        <Edit3 className="size-7" aria-hidden="true" />
+                      </span>
+                      <span>
+                        <span className="block text-2xl font-bold text-slate-950">Editar</span>
+                        <span className="mt-2 block text-base leading-7 text-slate-600">Modificar la información de esta propiedad.</span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="flex min-h-44 items-center gap-5 rounded-3xl border border-blue-200 bg-blue-50 p-6 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/40 sm:min-h-56 sm:flex-col sm:items-start sm:justify-between sm:p-8"
+                    >
+                      <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white sm:size-16">
+                        <Eye className="size-7" aria-hidden="true" />
+                      </span>
+                      <span>
+                        <span className="block text-2xl font-bold text-blue-950">Ver web</span>
+                        <span className="mt-2 block text-base leading-7 text-blue-800">Revisar cómo se presenta públicamente.</span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="flex min-h-44 items-center gap-5 rounded-3xl border border-rose-200 bg-rose-50 p-6 text-left shadow-sm transition-colors hover:border-rose-300 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-500/40 sm:min-h-56 sm:flex-col sm:items-start sm:justify-between sm:p-8"
+                    >
+                      <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-white sm:size-16">
+                        <Trash2 className="size-7" aria-hidden="true" />
+                      </span>
+                      <span>
+                        <span className="block text-2xl font-bold text-rose-950">Eliminar</span>
+                        <span className="mt-2 block text-base leading-7 text-rose-800">Quitar esta propiedad del inventario.</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 

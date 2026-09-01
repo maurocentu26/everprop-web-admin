@@ -11,6 +11,17 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from "@/lib/auth-context";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+
+const themeScript = `
+  try {
+    const savedTheme = localStorage.getItem("everprop-color-theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = savedTheme === "dark" || savedTheme === "light" ? savedTheme : (prefersDark ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
+  } catch (_) {}
+`;
 
 export default function RootLayout({
   children,
@@ -18,11 +29,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("h-full antialiased", "font-sans", geist.variable)}>
-      <body className="min-h-full flex flex-col">
-        <AuthProvider>
-          <main className="flex-1">{children}</main>
-        </AuthProvider>
+    <html lang="es" suppressHydrationWarning className={cn("h-full antialiased", "font-sans", geist.variable)}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="theme-root min-h-full flex flex-col">
+        <ThemeProvider>
+          <AuthProvider>
+            <main className="flex-1">{children}</main>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
