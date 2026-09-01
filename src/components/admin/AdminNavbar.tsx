@@ -31,7 +31,7 @@ type Props = {
 export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
   const router = useRouter();
   const { user, isEngineer } = useCurrentSession();
-  const { toggleSidebar } = useSidebar();
+  const { state: sidebarState, toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -71,6 +71,16 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
     prevUnreadRef.current = unreadCount;
   }, [bellControls, unreadCount]);
 
+  useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 767px)");
+    const closeMenuOnDesktop = (event: MediaQueryListEvent) => {
+      if (!event.matches) setIsMenuOpen(false);
+    };
+
+    mobileQuery.addEventListener("change", closeMenuOnDesktop);
+    return () => mobileQuery.removeEventListener("change", closeMenuOnDesktop);
+  }, []);
+
   const handleMarkAsRead = () => {
     if (!user?.id) return;
     markAllAsRead(user.id);
@@ -96,13 +106,23 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
                   setIsMenuOpen(true);
                   return;
                 }
+                setIsMenuOpen(false);
                 toggleSidebar();
               }}
               className="h-10 shrink-0 gap-2 px-3 text-sm font-semibold"
-              aria-label="Abrir menú principal"
+              aria-label={
+                isMobile
+                  ? "Abrir menú principal"
+                  : sidebarState === "expanded"
+                    ? "Contraer menú lateral"
+                    : "Expandir menú lateral"
+              }
+              aria-expanded={isMobile ? isMenuOpen : sidebarState === "expanded"}
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
-              <span className="hidden sm:inline">Menú</span>
+              <span className="hidden sm:inline">
+                {sidebarState === "expanded" ? "Ocultar menú" : "Mostrar menú"}
+              </span>
             </Button>
             <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1 text-sm font-medium text-black">
               <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-blue-600 text-xs font-bold text-white">IA</div>
@@ -170,16 +190,16 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
               </>
             )}
 
-            <button
-              type="button"
-              onClick={() => setIsMenuOpen(true)}
-              className="relative ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="Abrir menú de usuario"
+            <div
+              role="img"
+              aria-label={`Usuario actual: ${userInfo.name}`}
+              title={`${userInfo.name}${userInfo.role ? ` · ${userInfo.role}` : ""}`}
+              className="relative ml-1 flex h-9 w-9 cursor-default items-center justify-center rounded-full border border-slate-200"
             >
-                <Avatar className="h-full w-full">
-                  <AvatarFallback className="bg-blue-600 text-xs font-bold text-white">{userInfo.initials}</AvatarFallback>
-                </Avatar>
-            </button>
+              <Avatar className="h-full w-full">
+                <AvatarFallback className="bg-blue-600 text-xs font-bold text-white">{userInfo.initials}</AvatarFallback>
+              </Avatar>
+            </div>
           </div>
         </div>
 
@@ -193,7 +213,7 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
         </div>
       </header>
 
-      <AdminFullscreenMenu open={isMenuOpen} onOpenChange={setIsMenuOpen} />
+      {isMobile && <AdminFullscreenMenu open={isMenuOpen} onOpenChange={setIsMenuOpen} />}
 
       <Dialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
         <DialogContent fullScreen className="flex bg-slate-50" showCloseButton>
