@@ -37,7 +37,7 @@ export function AdminNavigationMenu({
           <h2 id="menu-quick-actions-title" className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-sidebar-foreground/65">
             Acciones rápidas
           </h2>
-          <div className="grid gap-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             {quickActionsConfig.map((action) => {
               const ActionIcon = action.icon;
               return (
@@ -62,7 +62,10 @@ export function AdminNavigationMenu({
         </section>
       )}
 
-      <nav aria-label="Navegación administrativa" className={cn(fullscreen ? "space-y-6" : "space-y-4")}>
+      <nav
+        aria-label="Navegación administrativa"
+        className={cn(fullscreen ? "grid gap-6 md:grid-cols-3" : "space-y-4")}
+      >
         {groups.map((group) => (
           <section key={group.label}>
             {!collapsed && (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import LeadTable from "@/components/admin/LeadTable";
 import { Button } from "@/components/ui/button";
 import { Download, Plus, Filter, Search } from "lucide-react";
@@ -16,15 +15,24 @@ import { useDashboardMode } from "@/lib/dashboard-context";
 import { RotateCcw, AlertTriangle } from "lucide-react";
 import { useCurrentSession } from "@/hooks/use-current-session";
 
+type LeadStageFilter = "all" | "new" | "process" | "closed";
+type AssetTypeFilter = "all" | "lote" | "departamento" | "comercial" | "tradicional";
+
+const LEAD_STAGE_FILTERS: { id: LeadStageFilter; label: string }[] = [
+  { id: "all", label: "Todos" },
+  { id: "new", label: "Nuevos" },
+  { id: "process", label: "En proceso" },
+  { id: "closed", label: "Cerrados" },
+];
+
 export default function AllLeadsPage() {
-  const router = useRouter();
   const { mode: dashboardMode } = useDashboardMode();
   const { isEngineer, isAdvisor, user } = useCurrentSession();
   
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeStage, setActiveStage] = useState<"all" | "new" | "process" | "closed">("all");
-  const [assetType, setAssetType] = useState<"all" | "lote" | "departamento" | "comercial" | "tradicional">("all");
+  const [activeStage, setActiveStage] = useState<LeadStageFilter>("all");
+  const [assetType, setAssetType] = useState<AssetTypeFilter>("all");
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -113,16 +121,16 @@ export default function AllLeadsPage() {
   if (!isLoaded) return <div className="h-96 animate-pulse bg-slate-100 rounded-3xl" />;
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-8 pb-10">
+    <div className="mx-auto max-w-[1400px] space-y-6 pb-10 sm:space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col justify-between gap-5 xl:flex-row xl:items-center">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Leads</h1>
-          <p className="mt-1 text-slate-500 text-sm">Gestioná y analizá todos los interesados de la comercializadora.</p>
+          <p className="mt-1 max-w-xl text-base leading-6 text-slate-500">Gestioná y analizá todos los interesados de la comercializadora.</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <InputGroup className="w-full sm:w-64 bg-white border-slate-200 shadow-sm rounded-xl">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center xl:w-auto">
+          <InputGroup className="w-full rounded-xl border-slate-200 bg-white shadow-sm sm:min-w-72 xl:w-72">
             <InputGroupAddon><Search className="h-4 w-4 text-slate-400" /></InputGroupAddon>
             <InputGroupInput 
               placeholder="Buscar lead, teléfono o lote..." 
@@ -132,13 +140,13 @@ export default function AllLeadsPage() {
             />
           </InputGroup>
           
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" className="gap-2 text-slate-600 flex-1 sm:flex-none">
+          <div className="flex w-full gap-2 sm:w-auto">
+            <Button variant="outline" className="min-h-11 flex-1 gap-2 text-slate-600 sm:flex-none">
               <Download className="h-4 w-4" />
               <span className="hidden xl:inline">Exportar</span>
             </Button>
             <Link href="/admin/leads/new" className="flex-1 sm:flex-none">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 w-full">
+              <Button className="min-h-11 w-full gap-2 bg-blue-600 text-white hover:bg-blue-700">
                   <Plus className="h-4 w-4" />
                   Nuevo Lead
               </Button>
@@ -147,20 +155,16 @@ export default function AllLeadsPage() {
         </div>
       </div>
 
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-2">
+      <div className="flex flex-col justify-between gap-4 pb-2 xl:flex-row xl:items-center">
         {/* Status Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto p-1 bg-slate-100 rounded-2xl">
-          {[
-            { id: "all", label: "Todos" },
-            { id: "new", label: "Nuevos" },
-            { id: "process", label: "En proceso" },
-            { id: "closed", label: "Cerrados" },
-          ].map(tab => (
+        <div className="grid w-full grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1 sm:grid-cols-4 xl:w-auto">
+          {LEAD_STAGE_FILTERS.map(tab => (
             <button 
               key={tab.id}
-              onClick={() => setActiveStage(tab.id as any)}
+              type="button"
+              onClick={() => setActiveStage(tab.id)}
               className={cn(
-                "px-4 py-1.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap",
+                "min-h-11 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-all",
                 activeStage === tab.id ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
               )}
             >
@@ -170,13 +174,14 @@ export default function AllLeadsPage() {
         </div>
 
         {/* Asset Type Filter & Clear Filters */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center xl:w-auto">
+          <div className="flex min-w-0 flex-1 items-center gap-2 xl:flex-none">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden md:inline-block">Interés en:</span>
             <select 
-              className="text-sm font-medium border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              aria-label="Filtrar por tipo de interés"
+              className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 xl:min-w-64"
               value={assetType}
-              onChange={(e) => setAssetType(e.target.value as any)}
+              onChange={(e) => setAssetType(e.target.value as AssetTypeFilter)}
             >
               <option value="all">Todos los activos</option>
               <option value="lote">Loteos</option>
@@ -191,7 +196,7 @@ export default function AllLeadsPage() {
               variant="ghost"
               size="sm"
               onClick={handleClearFilters}
-              className="text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-semibold gap-1.5"
+              className="min-h-11 gap-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
             >
               <RotateCcw className="h-3.5 w-3.5" /> Limpiar filtros
             </Button>

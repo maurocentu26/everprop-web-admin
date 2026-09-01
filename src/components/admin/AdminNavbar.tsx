@@ -16,7 +16,7 @@ import { AdminFullscreenMenu } from "@/components/admin/AdminFullscreenMenu";
 import { NewLeadDrawer } from "@/components/admin/NewLeadDrawer";
 import { GlobalSearch } from "@/components/admin/navbar/GlobalSearch";
 import { useCurrentSession } from "@/hooks/use-current-session";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { MOBILE_QUERY, useIsMobile } from "@/hooks/use-mobile";
 import { isMockDataMode } from "@/lib/data-mode";
 import { loadNotifications, markAllAsRead, type AppNotification } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
@@ -72,7 +72,7 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
   }, [bellControls, unreadCount]);
 
   useEffect(() => {
-    const mobileQuery = window.matchMedia("(max-width: 767px)");
+    const mobileQuery = window.matchMedia(MOBILE_QUERY);
     const closeMenuOnDesktop = (event: MediaQueryListEvent) => {
       if (!event.matches) setIsMenuOpen(false);
     };
@@ -121,7 +121,7 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
               <span className="hidden sm:inline">
-                {sidebarState === "expanded" ? "Ocultar menú" : "Mostrar menú"}
+                {isMobile ? "Menú" : sidebarState === "expanded" ? "Ocultar menú" : "Mostrar menú"}
               </span>
             </Button>
             <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1 text-sm font-medium text-black">
@@ -144,13 +144,13 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
           <div className="flex items-center justify-end gap-2">
             {isMockDataMode && (
               <>
-                <Button variant="outline" size="sm" className="hidden items-center gap-2 md:inline-flex">
+                <Button variant="outline" size="sm" className="hidden items-center gap-2 xl:inline-flex">
                   <Download className="h-4 w-4" /> Exportar
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="hidden items-center gap-2 md:inline-flex"
+                  className="hidden items-center gap-2 xl:inline-flex"
                   onClick={() => router.push("/admin/properties/new")}
                 >
                   <Plus className="h-4 w-4" /> Propiedad
@@ -158,7 +158,7 @@ export function AdminNavbar({ companyName = "Bellomo", className }: Props) {
                 {!isEngineer && (
                   <Button
                     size="sm"
-                    className="hidden items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 md:inline-flex"
+                    className="hidden items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 xl:inline-flex"
                     onClick={() => setIsLeadDrawerOpen(true)}
                   >
                     <Plus className="h-4 w-4" /> Lead
