@@ -7,6 +7,7 @@ export type Company = {
 
 export type ProjectType = 'land_development' | 'building' | 'commercial';
 export type ProjectStatus = 'planning' | 'pre_sale' | 'under_construction' | 'completed';
+export type LeadInterestCategory = 'loteo' | 'local' | 'cochera' | 'tradicional';
 
 export type Project = {
   id: string;
@@ -79,9 +80,31 @@ export type Lead = {
   lastActivity: string;
   phone?: string;
   email?: string;
+  interestCategory?: LeadInterestCategory;
+  notes?: string;
   visits?: Visit[];
   agentId?: string;
 };
+
+export function inferLeadInterestCategory(property: Property): LeadInterestCategory {
+  if (
+    property.propertyType === 'Lote' ||
+    property.sectorName?.toLowerCase().includes('manzana') ||
+    property.title.toLowerCase().includes('lote')
+  ) {
+    return 'loteo';
+  }
+
+  if (property.propertyType === 'Local' || property.commercialFeatures !== undefined) {
+    return 'local';
+  }
+
+  if (property.propertyType === 'Cochera' || property.isCovered !== undefined) {
+    return 'cochera';
+  }
+
+  return 'tradicional';
+}
 
 export const companies: Company[] = [
   { id: 'c1', name: 'Bellomo Jujuy', subdomain: 'bellomo', primaryColor: '#2563eb' },

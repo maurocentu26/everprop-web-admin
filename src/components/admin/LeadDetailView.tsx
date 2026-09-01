@@ -3,10 +3,10 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { 
-    ArrowLeft, Building2, Mail, Phone, MessageCircle, ExternalLink, MapPin, Plus, Search, X
+    ArrowLeft, Building2, ExternalLink, Plus, Search, X, CircleAlert, CircleCheck, StickyNote
 } from "lucide-react";
 import type { Lead, Property, Visit } from "@/data/admin-sample";
-import { leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
+import { inferLeadInterestCategory, leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
 import { loadLeadList, loadPropertyList, saveLeadList, savePropertyList, updateLeadAgent } from "@/lib/admin-storage";
 import VisitManager from "@/components/admin/VisitManager";
 import { useAuth } from "@/lib/auth-context";
@@ -17,7 +17,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { createNotification } from "@/lib/notifications";
 import { deferEffectUpdate } from "@/lib/deferred-effect";
 import FinancingCalculator from "@/components/admin/FinancingCalculator";
@@ -49,9 +48,12 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
         return;
     }
 
+    const linkedProperty = allProperties.find((property) => property.id === propId);
     const nextLead: Lead = {
       ...lead,
       propertyIds: [...lead.propertyIds, propId],
+      projectId: lead.projectId ?? linkedProperty?.projectId,
+      interestCategory: lead.interestCategory ?? (linkedProperty ? inferLeadInterestCategory(linkedProperty) : undefined),
       lastActivity: new Date().toISOString()
     };
 
@@ -159,6 +161,17 @@ function handleScheduleVisit(visit: Visit) {
 
   if (!lead) return null;
 
+  const primaryProperty = allProperties.find((property) => property.id === lead.propertyIds[0]);
+  const knownCategory = lead.interestCategory ?? (primaryProperty ? inferLeadInterestCategory(primaryProperty) : undefined);
+  const pendingData = [
+    !lead.phone ? "Teléfono" : null,
+    !lead.email ? "Email" : null,
+    !knownCategory ? "Categoría de interés" : null,
+    !lead.projectId ? "Proyecto (si corresponde)" : null,
+    lead.propertyIds.length === 0 ? "Propiedad de interés" : null,
+    !lead.notes ? "Notas / preferencias" : null,
+  ].filter((item): item is string => item !== null);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
       <Link href="/admin#leads" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600">
@@ -221,7 +234,7 @@ function handleScheduleVisit(visit: Visit) {
                         )}
                     </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-50">
+                <div className="grid grid-cols-1 gap-4 mt-8 pt-6 border-t border-slate-50 sm:grid-cols-2">
                     <div>
                         <p className="text-[10px] uppercase font-bold text-slate-400">WhatsApp</p>
                         <p className="text-sm font-medium">{lead.phone || "---"}</p>
@@ -231,6 +244,41 @@ function handleScheduleVisit(visit: Visit) {
                         <p className="text-sm font-medium">{lead.email || "---"}</p>
                     </div>
                 </div>
+
+                {pendingData.length > 0 ? (
+                  <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4" role="status">
+                    <div className="flex items-start gap-3">
+                      <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-amber-950">Información pendiente</p>
+                        <p className="mt-1 text-xs leading-5 text-amber-800">
+                          Este lead ya está registrado. Podés completar estos datos cuando estén disponibles.
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {pendingData.map((item) => (
+                            <span key={item} className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs font-medium text-amber-900">
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-6 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800" role="status">
+                    <CircleCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    La información principal de este lead está completa.
+                  </div>
+                )}
+
+                {lead.notes && (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      <StickyNote className="h-3.5 w-3.5" aria-hidden="true" /> Notas / Preferencias
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{lead.notes}</p>
+                  </div>
+                )}
             </div>
 
             {/* ── Simulador de Financiación ── */}

@@ -1,26 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 import {
-  MapPin,
   Building2,
-  Store,
   Car,
-  Home,
-  Search,
   Check,
-  ChevronRight,
-  User,
-  Phone,
+  Home,
   Mail,
+  MapPin,
+  Phone,
+  Search,
   Sparkles,
-  ArrowLeft,
+  Store,
+  User,
   X,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,28 +27,36 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   SheetDescription,
   SheetFooter,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { leads as sampleLeads, properties as sampleProperties, projects as sampleProjects, type Lead, type Property } from "@/data/admin-sample";
-import { loadLeadList, loadPropertyList, loadProjectList, saveLeadList } from "@/lib/admin-storage";
-import { useAuth } from "@/lib/auth-context";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+  inferLeadInterestCategory,
+  leads as sampleLeads,
+  projects as sampleProjects,
+  properties as sampleProperties,
+  type Lead,
+  type LeadInterestCategory,
+  type Project,
+  type Property,
+} from "@/data/admin-sample";
 import { MOCK_USERS } from "@/data/auth-sample";
-import { cn } from "@/lib/utils";
+import { appendLeadToStorage, loadProjectList, loadPropertyList } from "@/lib/admin-storage";
+import { useAuth } from "@/lib/auth-context";
 import { deferEffectUpdate } from "@/lib/deferred-effect";
+import { cn } from "@/lib/utils";
 
-export type AssetCategory = "loteo" | "local" | "cochera" | "tradicional";
+export type AssetCategory = LeadInterestCategory;
 
 interface AssetCategoryOption {
   id: AssetCategory;
   title: string;
   subtitle: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
-  badgeBg: string;
 }
 
 const CATEGORIES: AssetCategoryOption[] = [
@@ -59,32 +65,28 @@ const CATEGORIES: AssetCategoryOption[] = [
     title: "Loteos",
     subtitle: "Lotes en barrios privados y desarrollos",
     icon: MapPin,
-    color: "text-emerald-600 border-emerald-200 bg-emerald-50",
-    badgeBg: "bg-emerald-100 text-emerald-700",
+    color: "text-emerald-300 border-emerald-700 bg-emerald-950/60",
   },
   {
     id: "local",
     title: "Locales",
     subtitle: "Locales comerciales y espacios gastronómicos",
     icon: Store,
-    color: "text-indigo-600 border-indigo-200 bg-indigo-50",
-    badgeBg: "bg-indigo-100 text-indigo-700",
+    color: "text-indigo-300 border-indigo-700 bg-indigo-950/60",
   },
   {
     id: "cochera",
     title: "Cocheras",
-    subtitle: "Espacios de estacionamiento por piso/número",
+    subtitle: "Espacios de estacionamiento por piso o número",
     icon: Car,
-    color: "text-blue-600 border-blue-200 bg-blue-50",
-    badgeBg: "bg-blue-100 text-blue-700",
+    color: "text-blue-300 border-blue-700 bg-blue-950/60",
   },
   {
     id: "tradicional",
-    title: "Inmobiliaria Tradicional",
-    subtitle: "Casas, departamentos reventa y alquileres",
+    title: "Inmobiliaria tradicional",
+    subtitle: "Casas, departamentos, reventa y alquileres",
     icon: Home,
-    color: "text-amber-600 border-amber-200 bg-amber-50",
-    badgeBg: "bg-amber-100 text-amber-700",
+    color: "text-amber-300 border-amber-700 bg-amber-950/60",
   },
 ];
 
@@ -97,12 +99,12 @@ const leadSchema = z.object({
     .string()
     .trim()
     .optional()
-    .refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), "Ingresá un email válido."),
+    .refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "Ingresá un email válido."),
   phone: z
     .string()
     .trim()
     .optional()
-    .refine((val) => !val || /^\+?[0-9\s().-]{7,20}$/.test(val), "Ingresá un teléfono válido."),
+    .refine((value) => !value || /^\+?[0-9\s().-]{7,20}$/.test(value), "Ingresá un teléfono válido."),
   stage: z.enum(["new", "contacted", "visiting", "negotiation", "closing"]),
   notes: z.string().trim().max(250, "Las notas no pueden superar 250 caracteres.").optional().or(z.literal("")),
   agentId: z.string().optional(),
@@ -118,21 +120,19 @@ interface NewLeadDrawerProps {
 }
 
 export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess }: NewLeadDrawerProps) {
-  const router = useRouter();
   const { currentUser } = useAuth();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedCategory, setSelectedCategory] = useState<AssetCategory | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedAsset, setSelectedAsset] = useState<Property | null>(null);
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
   const [allProperties, setAllProperties] = useState<Property[]>([]);
-  const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     return deferEffectUpdate(() => {
-      if (open) {
-        setAllProperties(loadPropertyList(sampleProperties, companyId));
-        setAllProjects(loadProjectList(sampleProjects, companyId));
-      }
+      if (!open) return;
+      setAllProperties(loadPropertyList(sampleProperties, companyId));
+      setAllProjects(loadProjectList(sampleProjects, companyId));
     });
   }, [open, companyId]);
 
@@ -149,63 +149,46 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
     },
   });
 
-  // Filtered Assets based on Step 1 Category selection and Step 2 Search query
   const availableAssets = useMemo(() => {
-    if (!selectedCategory) return [];
+    const query = assetSearchQuery.toLowerCase().trim();
 
-    let filtered = allProperties.filter((p) => {
-      if (selectedCategory === "loteo") {
-        return (
-          p.propertyType === "Lote" ||
-          p.sectorName?.toLowerCase().includes("manzana") ||
-          p.title.toLowerCase().includes("lote")
-        );
-      }
-      if (selectedCategory === "local") {
-        return p.propertyType === "Local" || p.commercialFeatures !== undefined;
-      }
-      if (selectedCategory === "cochera") {
-        return p.propertyType === "Cochera" || p.isCovered !== undefined;
-      }
-      if (selectedCategory === "tradicional") {
-        return p.propertyType === "Casa" || (p.propertyType === "Departamento" && !p.projectId);
-      }
-      return true;
-    });
-
-    if (assetSearchQuery.trim()) {
-      const q = assetSearchQuery.toLowerCase().trim();
-      filtered = filtered.filter((p) => {
-        const matchesTitle = p.title.toLowerCase().includes(q);
-        const matchesUnit = p.unitNumber?.toLowerCase().includes(q);
-        const matchesSector = p.sectorName?.toLowerCase().includes(q);
-        const matchesNeighborhood = p.neighborhood.toLowerCase().includes(q);
-
-        const project = p.projectId ? allProjects.find((proj) => proj.id === p.projectId) : null;
-        const matchesProject = project ? project.name.toLowerCase().includes(q) : false;
-
-        return matchesTitle || matchesUnit || matchesSector || matchesNeighborhood || matchesProject;
+    return allProperties
+      .filter((property) => !selectedCategory || inferLeadInterestCategory(property) === selectedCategory)
+      .filter((property) => !selectedProjectId || property.projectId === selectedProjectId)
+      .filter((property) => {
+        if (!query) return true;
+        const project = property.projectId ? allProjects.find((candidate) => candidate.id === property.projectId) : null;
+        return [property.title, property.unitNumber, property.sectorName, property.neighborhood, project?.name]
+          .filter((value): value is string => Boolean(value))
+          .some((value) => value.toLowerCase().includes(query));
       });
+  }, [allProjects, allProperties, assetSearchQuery, selectedCategory, selectedProjectId]);
+
+  const selectedProject = allProjects.find((project) => project.id === selectedProjectId);
+
+  const handleCategorySelect = (category: AssetCategory) => {
+    const nextCategory = selectedCategory === category ? null : category;
+    setSelectedCategory(nextCategory);
+
+    if (selectedAsset && nextCategory && inferLeadInterestCategory(selectedAsset) !== nextCategory) {
+      setSelectedAsset(null);
     }
+  };
 
-    return filtered;
-  }, [selectedCategory, assetSearchQuery, allProperties, allProjects]);
-
-  const handleCategorySelect = (cat: AssetCategory) => {
-    setSelectedCategory(cat);
-    setSelectedAsset(null);
-    setAssetSearchQuery("");
-    setStep(2);
+  const handleProjectSelect = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    if (selectedAsset && selectedAsset.projectId !== projectId) setSelectedAsset(null);
   };
 
   const handleAssetSelect = (asset: Property) => {
     setSelectedAsset(asset);
-    setStep(3);
+    setSelectedCategory(inferLeadInterestCategory(asset));
+    setSelectedProjectId(asset.projectId ?? "");
   };
 
   const handleReset = () => {
-    setStep(1);
     setSelectedCategory(null);
+    setSelectedProjectId("");
     setSelectedAsset(null);
     setAssetSearchQuery("");
     form.reset({
@@ -219,8 +202,14 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
     });
   };
 
+  const handleClose = () => {
+    handleReset();
+    onOpenChange(false);
+  };
+
   const onSubmit = (data: FormValues) => {
     const trimmedName = data.name.trim();
+    const projectId = selectedAsset?.projectId ?? (selectedProjectId || undefined);
 
     const nextLead: Lead = {
       id: crypto.randomUUID(),
@@ -228,285 +217,133 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
       name: trimmedName,
       origin: data.origin,
       propertyIds: selectedAsset ? [selectedAsset.id] : [],
-      projectId: selectedAsset?.projectId,
+      projectId,
+      interestCategory: selectedCategory ?? undefined,
       stage: data.stage,
       lastActivity: new Date().toISOString(),
       phone: data.phone?.trim() || undefined,
       email: data.email?.trim() || undefined,
+      notes: data.notes?.trim() || undefined,
       agentId: currentUser?.role === "ADVISOR" ? currentUser.id : data.agentId,
     };
 
-    const existingLeads = loadLeadList(sampleLeads, companyId);
-    saveLeadList([...existingLeads, nextLead]);
+    try {
+      appendLeadToStorage(nextLead, sampleLeads, companyId);
 
-    toast.success("Lead registrado con éxito", {
-      description: `${trimmedName} fue asociado a ${selectedAsset?.title || "inventario"}.`,
-    });
+      toast.success("Lead registrado con éxito", {
+        description: selectedAsset
+          ? `${trimmedName} fue asociado a ${selectedAsset.title}.`
+          : `${trimmedName} se registró sin una propiedad asociada. Podés completar el interés después.`,
+      });
 
-    handleReset();
-    onOpenChange(false);
-    if (onSuccess) onSuccess();
+      handleReset();
+      onOpenChange(false);
+      onSuccess?.();
+    } catch {
+      toast.error("No pudimos guardar el lead", {
+        description: "Revisá el almacenamiento del navegador e intentá nuevamente.",
+      });
+    }
   };
 
   return (
-    <Sheet open={open} onOpenChange={(val) => { onOpenChange(val); if (!val) handleReset(); }}>
-      <SheetContent side="right" className="sm:max-w-xl w-full p-0 flex flex-col bg-slate-950 text-white border-l border-slate-800 shadow-2xl">
-        {/* Header */}
-        <SheetHeader className="p-6 border-b border-slate-800 bg-slate-900/90">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-blue-600/20">
-                <Sparkles size={16} />
+    <Sheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) handleReset();
+      }}
+    >
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="inset-0 h-dvh !w-screen !max-w-none gap-0 border-0 bg-slate-950 p-0 text-white shadow-none data-[side=right]:!left-0 data-[side=right]:!right-0 data-[side=right]:!w-screen data-[side=right]:sm:!max-w-none"
+      >
+        <SheetHeader className="shrink-0 border-b border-slate-700 bg-slate-900 px-5 py-5 sm:px-8 lg:px-10">
+          <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-5">
+            <div className="flex min-w-0 items-center gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20 sm:h-14 sm:w-14">
+                <Sparkles size={26} aria-hidden="true" />
               </span>
-              <div>
-                <SheetTitle className="text-xl font-bold text-white tracking-tight">Nuevo Interesado (Lead)</SheetTitle>
-                <SheetDescription className="text-xs text-slate-400">Proceso jerárquico de vinculación de activos</SheetDescription>
+              <div className="min-w-0">
+                <SheetTitle className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Alta de nuevo lead</SheetTitle>
+                <SheetDescription className="mt-1 text-base leading-7 text-slate-300 sm:text-lg">
+                  Registrá primero al contacto. El interés inmobiliario es opcional y puede completarse después.
+                </SheetDescription>
               </div>
             </div>
-          </div>
 
-          {/* Stepper indicator */}
-          <div className="mt-6 flex items-center justify-between gap-2 px-2">
-            {[
-              { num: 1, label: "Categoría" },
-              { num: 2, label: "Búsqueda" },
-              { num: 3, label: "Datos Lead" },
-            ].map((st) => (
-              <div key={st.num} className="flex-1 flex flex-col items-center gap-1.5">
-                <div
-                  className={cn(
-                    "w-full h-1.5 rounded-full transition-all duration-300",
-                    step >= st.num ? "bg-blue-500 shadow-sm shadow-blue-500/50" : "bg-slate-800"
-                  )}
-                />
-                <span className={cn("text-[10px] font-bold uppercase tracking-wider", step >= st.num ? "text-blue-400" : "text-slate-500")}>
-                  {st.num}. {st.label}
-                </span>
-              </div>
-            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              className="h-12 shrink-0 border-slate-600 bg-slate-800 px-4 text-base font-semibold text-white hover:bg-slate-700 hover:text-white sm:px-5"
+            >
+              <X size={22} aria-hidden="true" />
+              <span className="hidden sm:inline">Cerrar</span>
+            </Button>
           </div>
         </SheetHeader>
 
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* STEP 1: CATEGORY SELECTION */}
-          {step === 1 && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Paso 1: Seleccioná la categoría del activo</h3>
-                <p className="text-xs text-slate-400 mt-1">Identificá el tipo de propiedad que busca o consultó el cliente.</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                {CATEGORIES.map((cat) => {
-                  const Icon = cat.icon;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => handleCategorySelect(cat.id)}
-                      className={cn(
-                        "flex flex-col text-left p-4 rounded-xl border transition-all group hover:scale-[1.02]",
-                        "bg-slate-900 border-slate-800 hover:border-blue-500 hover:bg-slate-850"
-                      )}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className={cn("p-2.5 rounded-lg border", cat.color)}>
-                          <Icon size={20} />
-                        </div>
-                        <ChevronRight size={16} className="text-slate-500 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
-                      </div>
-                      <span className="font-bold text-white text-base group-hover:text-blue-400 transition-colors">{cat.title}</span>
-                      <span className="text-xs text-slate-400 mt-1 leading-snug">{cat.subtitle}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: DYNAMIC COMMAND SEARCH */}
-          {step === 2 && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
-                >
-                  <ArrowLeft size={14} /> Volver a categorías
-                </button>
-                {selectedCategory && (
-                  <span className={cn("px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider", CATEGORIES.find(c => c.id === selectedCategory)?.badgeBg)}>
-                    {CATEGORIES.find((c) => c.id === selectedCategory)?.title}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-950">
+          <form id="drawer-lead-form" onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full max-w-[1600px] p-5 sm:p-8 lg:p-10">
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] xl:gap-8">
+              <section className="space-y-6 rounded-3xl border border-slate-700 bg-slate-900 p-5 shadow-xl sm:p-7 lg:p-8" aria-labelledby="lead-basic-data">
+                <div className="flex items-start gap-4 border-b border-slate-700 pb-6">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-950 text-blue-300">
+                    <User size={25} aria-hidden="true" />
                   </span>
-                )}
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Paso 2: Buscá el activo específico</h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  {selectedCategory === "loteo" && "Buscá por nombre de Proyecto, Manzana o Lote."}
-                  {selectedCategory === "cochera" && "Buscá por número de Cochera o Piso."}
-                  {selectedCategory === "local" && "Buscá por número de Local o Paseo Comercial."}
-                  {selectedCategory === "tradicional" && "Buscá por dirección o título de propiedad."}
-                </p>
-              </div>
-
-              {/* Command Input */}
-              <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input
-                  value={assetSearchQuery}
-                  onChange={(e) => setAssetSearchQuery(e.target.value)}
-                  placeholder={
-                    selectedCategory === "loteo" ? "Ej: Lote 14, Manzana A, Terrazas..." :
-                    selectedCategory === "cochera" ? "Ej: Cochera 12, Piso 1..." :
-                    selectedCategory === "local" ? "Ej: Local 3, San Martín..." : "Ej: Depto Palermo, Casa Central..."
-                  }
-                  className="pl-10 h-11 bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20"
-                />
-                {assetSearchQuery && (
-                  <X
-                    size={16}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
-                    onClick={() => setAssetSearchQuery("")}
-                  />
-                )}
-              </div>
-
-              {/* Results list */}
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {availableAssets.length > 0 ? (
-                  availableAssets.map((asset) => {
-                    const isSelected = selectedAsset?.id === asset.id;
-                    const project = asset.projectId ? allProjects.find((p) => p.id === asset.projectId) : null;
-                    return (
-                      <button
-                        key={asset.id}
-                        type="button"
-                        onClick={() => handleAssetSelect(asset)}
-                        className={cn(
-                          "w-full text-left p-3.5 rounded-xl border flex items-center justify-between transition-all",
-                          isSelected
-                            ? "bg-blue-600/20 border-blue-500 text-white"
-                            : "bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-850 hover:border-slate-700"
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-slate-800 flex items-center justify-center text-blue-400 font-bold text-xs flex-shrink-0">
-                            {asset.unitNumber || asset.title.slice(0, 3)}
-                          </div>
-                          <div>
-                            <p className="font-bold text-sm text-white">{asset.title}</p>
-                            <p className="text-xs text-slate-400">
-                              {project?.name ? `${project.name} • ` : ""}
-                              {asset.sectorName ? `${asset.sectorName} • ` : ""}
-                              {asset.currency} {asset.price.toLocaleString("es-AR")}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
-                            (!asset.status || asset.status === 'available') ? "bg-emerald-950 text-emerald-400 border border-emerald-800" : "bg-amber-950 text-amber-400 border border-amber-800"
-                          )}>
-                            {(!asset.status || asset.status === 'available') ? 'Disponible' : asset.status}
-                          </span>
-                          <ChevronRight size={16} className="text-slate-500" />
-                        </div>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="p-8 text-center bg-slate-900 rounded-xl border border-dashed border-slate-800 text-slate-500">
-                    No se encontraron activos para la búsqueda.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: ASSET PREVIEW & CONTACT FORM */}
-          {step === 3 && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
-                >
-                  <ArrowLeft size={14} /> Cambiar activo seleccionado
-                </button>
-              </div>
-
-              {/* ASSET PREVIEW CARD */}
-              {selectedAsset && (
-                <div className="bg-gradient-to-br from-blue-950/60 to-slate-900 p-4 rounded-xl border border-blue-500/30 shadow-lg relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/10 rounded-full blur-2xl pointer-events-none" />
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 block mb-1">
-                        Activo Seleccionado
-                      </span>
-                      <h4 className="text-lg font-bold text-white">{selectedAsset.title}</h4>
-                      <p className="text-xs text-slate-300 mt-0.5">
-                        {selectedAsset.neighborhood}, {selectedAsset.city}
-                      </p>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      {selectedAsset.currency} {selectedAsset.price.toLocaleString("es-AR")}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap gap-4 text-xs text-slate-300">
-                    <div><span className="text-slate-500">Tipo:</span> <strong className="text-white">{selectedAsset.propertyType}</strong></div>
-                    {selectedAsset.sectorName && <div><span className="text-slate-500">Sector:</span> <strong className="text-white">{selectedAsset.sectorName}</strong></div>}
-                    {selectedAsset.area_m2 && <div><span className="text-slate-500">Superficie:</span> <strong className="text-white">{selectedAsset.area_m2} m²</strong></div>}
+                  <div>
+                    <h2 id="lead-basic-data" className="text-2xl font-bold text-white">Datos básicos del lead</h2>
+                    <p className="mt-2 text-base leading-7 text-slate-300">
+                      Completá la información que ya conocés. Estos datos aparecen primero para registrar el contacto rápidamente.
+                    </p>
                   </div>
                 </div>
-              )}
-
-              {/* CONTACT FORM */}
-              <form id="drawer-lead-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                  <User size={16} className="text-blue-400" /> Paso 3: Datos de Contacto del Lead
-                </h3>
 
                 <Controller
                   name="name"
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel className="text-xs font-semibold text-slate-300">
+                      <FieldLabel htmlFor="lead-name" className="text-base font-bold text-slate-100">
                         Nombre completo <span className="text-rose-400">*</span>
                       </FieldLabel>
                       <Input
                         {...field}
-                        placeholder="Ej: Marcos Gallardo"
-                        className="h-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500"
+                        id="lead-name"
+                        autoComplete="name"
+                        autoFocus
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Ejemplo: Marcos Gallardo"
+                        className="h-14 border-slate-600 bg-slate-950 px-4 text-lg text-white placeholder:text-slate-500 focus:border-blue-500"
                       />
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} className="text-rose-400" />}
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} className="text-base font-medium text-rose-400" />}
                     </Field>
                   )}
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <Controller
                     name="phone"
                     control={form.control}
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel className="text-xs font-semibold text-slate-300">WhatsApp / Teléfono</FieldLabel>
+                        <FieldLabel htmlFor="lead-phone" className="text-base font-bold text-slate-100">WhatsApp / Teléfono</FieldLabel>
                         <div className="relative">
-                          <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                          <Phone size={21} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                           <Input
                             {...field}
+                            id="lead-phone"
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            aria-invalid={fieldState.invalid}
                             placeholder="+54 9 11 1234 5678"
-                            className="pl-9 h-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500"
+                            className="h-14 border-slate-600 bg-slate-950 pl-12 pr-4 text-lg text-white placeholder:text-slate-500 focus:border-blue-500"
                           />
                         </div>
-                        {fieldState.invalid && <FieldError errors={[fieldState.error]} className="text-rose-400" />}
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} className="text-base font-medium text-rose-400" />}
                       </Field>
                     )}
                   />
@@ -516,37 +353,42 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
                     control={form.control}
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel className="text-xs font-semibold text-slate-300">Email</FieldLabel>
+                        <FieldLabel htmlFor="lead-email" className="text-base font-bold text-slate-100">Email</FieldLabel>
                         <div className="relative">
-                          <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                          <Mail size={21} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                           <Input
                             {...field}
+                            id="lead-email"
                             type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            aria-invalid={fieldState.invalid}
                             placeholder="lead@ejemplo.com"
-                            className="pl-9 h-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500"
+                            className="h-14 border-slate-600 bg-slate-950 pl-12 pr-4 text-lg text-white placeholder:text-slate-500 focus:border-blue-500"
                           />
                         </div>
-                        {fieldState.invalid && <FieldError errors={[fieldState.error]} className="text-rose-400" />}
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} className="text-base font-medium text-rose-400" />}
                       </Field>
                     )}
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <Controller
                     name="origin"
                     control={form.control}
-                    render={({ field }) => (
-                      <Field>
-                        <FieldLabel className="text-xs font-semibold text-slate-300">Origen de contacto</FieldLabel>
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="lead-origin" className="text-base font-bold text-slate-100">Origen del contacto</FieldLabel>
                         <select
                           {...field}
-                          className="h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs text-white outline-none focus:border-blue-500"
+                          id="lead-origin"
+                          aria-invalid={fieldState.invalid}
+                          className="h-14 w-full rounded-lg border border-slate-600 bg-slate-950 px-4 text-lg text-white outline-none focus:border-blue-500"
                         >
-                          {ORIGINS.map((o) => (
-                            <option key={o} value={o}>{o}</option>
-                          ))}
+                          {ORIGINS.map((origin) => <option key={origin} value={origin}>{origin}</option>)}
                         </select>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} className="text-base font-medium text-rose-400" />}
                       </Field>
                     )}
                   />
@@ -556,10 +398,11 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
                     control={form.control}
                     render={({ field }) => (
                       <Field>
-                        <FieldLabel className="text-xs font-semibold text-slate-300">Estado inicial</FieldLabel>
+                        <FieldLabel htmlFor="lead-stage" className="text-base font-bold text-slate-100">Estado inicial</FieldLabel>
                         <select
                           {...field}
-                          className="h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs text-white outline-none focus:border-blue-500"
+                          id="lead-stage"
+                          className="h-14 w-full rounded-lg border border-slate-600 bg-slate-950 px-4 text-lg text-white outline-none focus:border-blue-500"
                         >
                           <option value="new">Nuevo</option>
                           <option value="contacted">Contactado</option>
@@ -577,14 +420,16 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel className="text-xs font-semibold text-slate-300">Notas / Preferencias</FieldLabel>
+                      <FieldLabel htmlFor="lead-notes" className="text-base font-bold text-slate-100">Notas / Preferencias</FieldLabel>
                       <Textarea
                         {...field}
-                        rows={3}
+                        id="lead-notes"
+                        rows={4}
+                        aria-invalid={fieldState.invalid}
                         placeholder="Comentarios adicionales del interesado..."
-                        className="bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500"
+                        className="min-h-32 border-slate-600 bg-slate-950 px-4 py-3 text-lg leading-7 text-white placeholder:text-slate-500 focus:border-blue-500"
                       />
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} className="text-rose-400" />}
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} className="text-base font-medium text-rose-400" />}
                     </Field>
                   )}
                 />
@@ -595,57 +440,186 @@ export function NewLeadDrawer({ open, onOpenChange, companyId = "c1", onSuccess 
                     control={form.control}
                     render={({ field }) => (
                       <Field>
-                        <FieldLabel className="text-xs font-semibold text-slate-300">Asesor Comercial Asignado</FieldLabel>
+                        <FieldLabel htmlFor="lead-agent" className="text-base font-bold text-slate-100">Asesor comercial asignado</FieldLabel>
                         <select
                           {...field}
-                          className="h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs text-white outline-none focus:border-blue-500"
+                          id="lead-agent"
+                          className="h-14 w-full rounded-lg border border-slate-600 bg-slate-950 px-4 text-lg text-white outline-none focus:border-blue-500"
                         >
                           <option value="">Sin asignar (Global)</option>
-                          {MOCK_USERS.filter(u => u.role === "ADVISOR").map((u) => (
-                            <option key={u.id} value={u.id}>{u.name}</option>
+                          {MOCK_USERS.filter((user) => user.role === "ADVISOR").map((user) => (
+                            <option key={user.id} value={user.id}>{user.name}</option>
                           ))}
                         </select>
                       </Field>
                     )}
                   />
                 )}
-              </form>
+
+                <div className="rounded-2xl border border-blue-700 bg-blue-950/60 p-5 text-base leading-7 text-blue-100">
+                  Podés guardar el lead aunque todavía no conozcas su categoría, proyecto o propiedad de interés.
+                </div>
+              </section>
+
+              <section className="space-y-6 rounded-3xl border border-slate-700 bg-slate-900 p-5 shadow-xl sm:p-7 lg:p-8" aria-labelledby="lead-interest-data">
+                <div className="flex items-start gap-4 border-b border-slate-700 pb-6">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-950 text-violet-300">
+                    <Building2 size={25} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 id="lead-interest-data" className="text-2xl font-bold text-white">Interés inmobiliario</h2>
+                      <span className="rounded-full border border-slate-600 bg-slate-800 px-3 py-1 text-base font-semibold text-slate-200">Opcional</span>
+                    </div>
+                    <p className="mt-2 text-base leading-7 text-slate-300">
+                      Si todavía no conocés estos datos, dejalos vacíos y completalos más adelante.
+                    </p>
+                  </div>
+                </div>
+
+                <Field>
+                  <FieldLabel className="text-lg font-bold text-slate-100">Categoría</FieldLabel>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {CATEGORIES.map((category) => {
+                      const Icon = category.icon;
+                      const isSelected = selectedCategory === category.id;
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          aria-pressed={isSelected}
+                          onClick={() => handleCategorySelect(category.id)}
+                          className={cn(
+                            "flex min-h-28 items-center gap-4 rounded-2xl border p-4 text-left transition-colors",
+                            isSelected ? "border-blue-400 bg-blue-950/70 ring-2 ring-blue-500/30" : "border-slate-600 bg-slate-950 hover:border-slate-400",
+                          )}
+                        >
+                          <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border", category.color)}>
+                            <Icon size={23} aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-lg font-bold leading-6 text-white">{category.title}</span>
+                            <span className="mt-1 block text-base leading-6 text-slate-300">{category.subtitle}</span>
+                          </span>
+                          {isSelected && <Check size={22} className="shrink-0 text-blue-300" aria-hidden="true" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <FieldDescription className="text-base leading-7 text-slate-400">Volvé a tocar una categoría para quitarla.</FieldDescription>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="lead-project" className="text-lg font-bold text-slate-100">Proyecto</FieldLabel>
+                  <select
+                    id="lead-project"
+                    value={selectedProjectId}
+                    onChange={(event) => handleProjectSelect(event.target.value)}
+                    className="h-14 w-full rounded-lg border border-slate-600 bg-slate-950 px-4 text-lg text-white outline-none focus:border-blue-500"
+                  >
+                    <option value="">Sin proyecto identificado</option>
+                    {allProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                  </select>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="lead-property-search" className="text-lg font-bold text-slate-100">Propiedad</FieldLabel>
+
+                  {selectedAsset && (
+                    <div className="mb-3 flex items-center gap-4 rounded-2xl border border-blue-500 bg-blue-950/60 p-4">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-900 text-blue-200">
+                        <Building2 size={23} aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-lg font-bold text-white">{selectedAsset.title}</p>
+                        <p className="mt-1 text-base leading-6 text-slate-300">
+                          {selectedProject?.name ?? `${selectedAsset.neighborhood}, ${selectedAsset.city}`}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setSelectedAsset(null)}
+                        className="h-12 w-12 shrink-0 text-slate-200 hover:bg-slate-800 hover:text-white"
+                        aria-label="Quitar propiedad seleccionada"
+                      >
+                        <X size={23} aria-hidden="true" />
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <Search size={22} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                    <Input
+                      id="lead-property-search"
+                      value={assetSearchQuery}
+                      onChange={(event) => setAssetSearchQuery(event.target.value)}
+                      placeholder="Buscar propiedad, unidad, barrio o proyecto"
+                      className="h-14 border-slate-600 bg-slate-950 pl-12 pr-4 text-lg text-white placeholder:text-slate-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="mt-3 max-h-80 space-y-3 overflow-y-auto pr-2">
+                    {availableAssets.length > 0 ? (
+                      availableAssets.slice(0, 8).map((asset) => {
+                        const project = asset.projectId ? allProjects.find((candidate) => candidate.id === asset.projectId) : null;
+                        const isSelected = selectedAsset?.id === asset.id;
+                        return (
+                          <button
+                            key={asset.id}
+                            type="button"
+                            onClick={() => handleAssetSelect(asset)}
+                            className={cn(
+                              "flex min-h-20 w-full items-center gap-4 rounded-2xl border p-4 text-left transition-colors",
+                              isSelected ? "border-blue-400 bg-blue-950/70" : "border-slate-600 bg-slate-950 hover:border-slate-400",
+                            )}
+                          >
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-base font-bold text-blue-300">
+                              {asset.unitNumber || asset.title.slice(0, 3)}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-lg font-bold leading-6 text-white">{asset.title}</span>
+                              <span className="mt-1 block text-base leading-6 text-slate-300">
+                                {project?.name ? `${project.name} · ` : ""}{asset.neighborhood}
+                              </span>
+                            </span>
+                            {isSelected && <Check size={22} className="shrink-0 text-blue-300" aria-hidden="true" />}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <p className="rounded-2xl border border-dashed border-slate-600 p-7 text-center text-base leading-7 text-slate-300">
+                        No se encontraron propiedades con esos filtros.
+                      </p>
+                    )}
+                  </div>
+                  <FieldDescription className="text-base leading-7 text-slate-400">No es necesario elegir una propiedad para guardar el lead.</FieldDescription>
+                </Field>
+              </section>
             </div>
-          )}
+          </form>
         </div>
 
-        {/* Footer actions */}
-        <SheetFooter className="p-6 border-t border-slate-800 bg-slate-900/90 flex flex-row items-center justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleReset}
-            className="text-slate-400 hover:text-white hover:bg-slate-800"
-          >
-            Reiniciar
-          </Button>
+        <SheetFooter className="shrink-0 border-t border-slate-700 bg-slate-900 px-5 py-4 sm:px-8 lg:px-10">
+          <div className="mx-auto flex w-full max-w-[1600px] flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleReset}
+              className="h-14 w-full border-slate-600 bg-slate-800 px-6 text-lg font-semibold text-white hover:bg-slate-700 hover:text-white sm:w-auto"
+            >
+              Limpiar formulario
+            </Button>
 
-          {step === 3 ? (
             <Button
               type="submit"
               form="drawer-lead-form"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 shadow-lg shadow-blue-600/30"
+              className="h-14 w-full bg-blue-600 px-9 text-lg font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 sm:min-w-56 sm:w-auto"
             >
-              Guardar Lead
+              Guardar lead
             </Button>
-          ) : (
-            <Button
-              type="button"
-              disabled={step === 1 && !selectedCategory}
-              onClick={() => {
-                if (step === 1 && selectedCategory) setStep(2);
-                else if (step === 2 && selectedAsset) setStep(3);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 disabled:opacity-50"
-            >
-              Continuar <ChevronRight size={16} className="ml-1" />
-            </Button>
-          )}
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>

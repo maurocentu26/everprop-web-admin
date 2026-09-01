@@ -39,9 +39,20 @@ export function loadProjectList(seed: Project[], companyId: string) {
 }
 
 export function appendLeadToStorage(nextLead: Lead, seed: Lead[], companyId: string) {
-  const current = loadLeadList(seed, companyId);
-  const next = [...current, nextLead];
-  window.localStorage.setItem(ADMIN_STORAGE_KEYS.leads, JSON.stringify(next));
+  if (nextLead.companyId !== companyId) {
+    throw new Error("El lead no pertenece a la empresa activa.");
+  }
+
+  const stored = readList<Lead>(ADMIN_STORAGE_KEYS.leads);
+  const source = stored.length > 0 ? stored : seed;
+  const companyLeads = source.filter((lead) => lead.companyId === companyId);
+  const otherCompanyLeads = source.filter((lead) => lead.companyId !== companyId);
+  const next = [...companyLeads, nextLead];
+
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(ADMIN_STORAGE_KEYS.leads, JSON.stringify([...otherCompanyLeads, ...next]));
+  }
+
   return next;
 }
 
