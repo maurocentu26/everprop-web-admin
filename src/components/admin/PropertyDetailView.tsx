@@ -61,7 +61,8 @@ export default function PropertyDetailView({ propertyId }: Props) {
       ...visit, 
       propertyId: property.id, 
       propertyTitle: property.title,
-      leadName: finalLeadName // VITAL para la sidebar
+      leadName: finalLeadName, // VITAL para la sidebar
+      agentId: visit.agentId ?? targetLead?.agentId,
     };
 
     // 3. Actualizamos la PROPIEDAD actual y la lista global de propiedades

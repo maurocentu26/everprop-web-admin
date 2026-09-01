@@ -31,11 +31,14 @@ import { deferEffectUpdate } from "@/lib/deferred-effect";
 import { Button } from "@/components/ui/button";
 import Badge from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import VisitManager from "@/components/admin/VisitManager";
 import FinancingCalculator from "@/components/admin/FinancingCalculator";
 import { LeadInterestEditor } from "@/components/admin/LeadInterestEditor";
 import { LeadProfileEditor } from "@/components/admin/LeadProfileEditor";
+import { LeadAdvisorEditor } from "@/components/admin/LeadAdvisorEditor";
+import { LeadFollowUpEditor } from "@/components/admin/LeadFollowUpEditor";
+import { LeadFollowUpStatus } from "@/components/admin/LeadFollowUpStatus";
 
 const CATEGORY_LABELS: Record<LeadInterestCategory, string> = {
   loteo: "Loteos",
@@ -52,7 +55,8 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
-  const [pendingAgentId, setPendingAgentId] = useState<string | null>(null);
+  const [advisorEditorOpen, setAdvisorEditorOpen] = useState(false);
+  const [followUpEditorOpen, setFollowUpEditorOpen] = useState(false);
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const [interestEditor, setInterestEditor] = useState<InterestEditorState>(null);
   const [interestToDelete, setInterestToDelete] = useState<LeadInterest | null>(null);
@@ -113,7 +117,12 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
 
   function handleScheduleVisit(visit: Visit) {
     if (!lead) return;
-    const finalVisit: Visit = { ...visit, leadId: lead.id, leadName: lead.name };
+    const finalVisit: Visit = {
+      ...visit,
+      leadId: lead.id,
+      leadName: lead.name,
+      agentId: visit.agentId ?? lead.agentId,
+    };
     const propertyId = visit.propertyId;
     let nextInterests = interests;
     if (propertyId && !getInterestAssetIds(interests).includes(propertyId)) {
@@ -134,21 +143,30 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
     toast.success("Visita agendada y sincronizada con la propiedad");
   }
 
-  function handleReassignAgentConfirmed() {
-    if (!lead || !pendingAgentId) return;
-    const nextLeads = updateLeadAgent(lead.id, pendingAgentId, allLeads, lead.companyId);
+  function handleReassignAgentConfirmed(agentId?: string) {
+    if (!lead) return;
+    const nextLeads = updateLeadAgent(lead.id, agentId, allLeads, lead.companyId);
     setAllLeads(nextLeads);
     setLead(nextLeads.find((candidate) => candidate.id === lead.id) ?? null);
-    try {
-      const channel = new BroadcastChannel("everprop_events");
-      channel.postMessage({ type: "LEAD_REASSIGNED", targetAgentId: pendingAgentId, leadName: lead.name });
-      channel.close();
-      createNotification(pendingAgentId, `Se te ha reasignado el lead "${lead.name}"`);
-    } catch (error) {
-      console.error(error);
+    if (agentId) {
+      try {
+        const channel = new BroadcastChannel("everprop_events");
+        channel.postMessage({ type: "LEAD_REASSIGNED", targetAgentId: agentId, leadName: lead.name });
+        channel.close();
+        createNotification(agentId, `Se te ha reasignado el lead "${lead.name}"`);
+      } catch (error) {
+        console.error(error);
+      }
     }
-    setPendingAgentId(null);
-    toast.success("Asesor reasignado");
+    setAdvisorEditorOpen(false);
+    toast.success(agentId ? "Asesor responsable actualizado" : "Lead dejado sin asignar");
+  }
+
+  function handleUpdateFollowUp() {
+    if (!lead) return;
+    updateLeadData({ ...lead, followUpUpdatedAt: new Date().toISOString() });
+    setFollowUpEditorOpen(false);
+    toast.success("Seguimiento actualizado");
   }
 
   if (!lead) return null;
@@ -162,6 +180,9 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
   const interestAssetIds = getInterestAssetIds(interests);
   const primaryProperty = interestAssetIds[0]
     ? propertyById.get(interestAssetIds[0])
+    : undefined;
+  const assignedAgent = lead.agentId
+    ? MOCK_USERS.find((user) => user.id === lead.agentId)
     : undefined;
 
   return (
@@ -194,22 +215,30 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
           </Button>
         </div>
 
-        {currentUser?.role === "ADMIN" && (
-          <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div><p className="text-sm font-semibold text-slate-500">Asesor asignado</p><p className="mt-1 text-base font-bold text-slate-950">{lead.agentId ? MOCK_USERS.find((user) => user.id === lead.agentId)?.name : "Sin asignar"}</p></div>
-            <Dialog open={pendingAgentId !== null} onOpenChange={(open) => !open && setPendingAgentId(null)}>
-              <DialogTrigger className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-base font-semibold hover:bg-slate-100" onClick={() => setPendingAgentId(lead.agentId || "none")}>Reasignar</DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader><DialogTitle>Reasignar asesor</DialogTitle><DialogDescription>Seleccioná el nuevo asesor para esta oportunidad.</DialogDescription></DialogHeader>
-                <select value={pendingAgentId === "none" ? "" : pendingAgentId ?? ""} onChange={(event) => setPendingAgentId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-300 px-3 text-base">
-                  <option value="" disabled>Seleccionar asesor...</option>
-                  {MOCK_USERS.filter((user) => user.role === "ADVISOR").map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
-                </select>
-                <DialogFooter className="mt-4 flex gap-2"><Button variant="outline" onClick={() => setPendingAgentId(null)}>Cancelar</Button><Button className="bg-blue-600 hover:bg-blue-700" onClick={handleReassignAgentConfirmed} disabled={!pendingAgentId || pendingAgentId === "none" || pendingAgentId === lead.agentId}>Confirmar cambio</Button></DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        )}
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <section className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5" aria-labelledby="lead-advisor-title">
+            <div>
+              <p id="lead-advisor-title" className="text-sm font-semibold text-slate-500">Asesor responsable</p>
+              <p className="mt-1 text-xl font-bold text-slate-950">{assignedAgent?.name ?? "Sin asignar"}</p>
+              <p className="mt-1 text-base leading-7 text-slate-600">Cada lead conserva un único asesor responsable.</p>
+            </div>
+            {currentUser?.role === "ADMIN" && (
+              <Button variant="outline" onClick={() => setAdvisorEditorOpen(true)} className="h-12 w-full px-5 text-base font-semibold sm:w-auto sm:self-start">
+                Cambiar asesor
+              </Button>
+            )}
+          </section>
+
+          <section className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5" aria-labelledby="lead-follow-up-title">
+            <div>
+              <p id="lead-follow-up-title" className="text-sm font-semibold text-slate-500">Seguimiento comercial</p>
+              <LeadFollowUpStatus updatedAt={lead.followUpUpdatedAt} className="mt-3" />
+            </div>
+            <Button onClick={() => setFollowUpEditorOpen(true)} className="h-12 w-full bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-700 sm:w-auto sm:self-start">
+              Actualizar seguimiento
+            </Button>
+          </section>
+        </div>
 
         {generalPendingData.length > 0 ? (
           <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5" role="status">
@@ -262,11 +291,13 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <FinancingCalculator defaultPrice={primaryProperty?.price} defaultCurrency={primaryProperty?.currency ?? "USD"} leadName={lead.name} />
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><VisitManager title="Gestión de visitas" subtitle="Agendá citas para cualquiera de sus activos de interés." visits={lead.visits ?? []} onSchedule={handleScheduleVisit} defaultGuestName={lead.name} defaultPhone={lead.phone} defaultEmail={lead.email} propertyOptions={allProperties.filter((property) => interestAssetIds.includes(property.id))} /></section>
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><VisitManager title="Gestión de visitas" subtitle="Agendá citas para cualquiera de sus activos de interés." visits={lead.visits ?? []} onSchedule={handleScheduleVisit} defaultGuestName={lead.name} defaultPhone={lead.phone} defaultEmail={lead.email} defaultAgentId={lead.agentId} propertyOptions={allProperties.filter((property) => interestAssetIds.includes(property.id))} /></section>
       </div>
 
       {profileEditorOpen && <LeadProfileEditor key={lead.lastActivity} lead={lead} onClose={() => setProfileEditorOpen(false)} onSave={handleSaveProfile} />}
       {interestEditor && <LeadInterestEditor key={interestEditor.mode === "edit" ? interestEditor.interest.id : "new-interest"} companyId={lead.companyId} interest={interestEditor.mode === "edit" ? interestEditor.interest : undefined} projects={allProjects} properties={allProperties} onClose={() => setInterestEditor(null)} onSave={handleSaveInterest} />}
+      {followUpEditorOpen && <LeadFollowUpEditor leadName={lead.name} updatedAt={lead.followUpUpdatedAt} onClose={() => setFollowUpEditorOpen(false)} onConfirm={handleUpdateFollowUp} />}
+      {advisorEditorOpen && currentUser?.role === "ADMIN" && <LeadAdvisorEditor leadName={lead.name} currentAgentId={lead.agentId} onClose={() => setAdvisorEditorOpen(false)} onSave={handleReassignAgentConfirmed} />}
 
       <Dialog open={Boolean(interestToDelete)} onOpenChange={(open) => !open && setInterestToDelete(null)}>
         <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Eliminar este interés</DialogTitle><DialogDescription>Se quitará solamente esta ficha. El cliente y sus demás intereses no serán eliminados.</DialogDescription></DialogHeader><DialogFooter className="mt-4 gap-2"><Button variant="outline" onClick={() => setInterestToDelete(null)}>Cancelar</Button><Button variant="destructive" onClick={handleDeleteInterest}>Eliminar interés</Button></DialogFooter></DialogContent>

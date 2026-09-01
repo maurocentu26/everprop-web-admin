@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { LeadFollowUpStatus } from "@/components/admin/LeadFollowUpStatus";
 
 // Mapa de colores para los estados (Consistente con el Kanban)
 const STAGE_LABELS: Record<string, { label: string; class: string }> = {
@@ -97,10 +98,8 @@ export default function LeadTable({ leads }: { leads: Lead[] }) {
                   <dd className="mt-1 text-sm font-medium text-slate-700">{lead.origin}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Última actividad</dt>
-                  <dd className="mt-1 text-sm font-medium text-slate-700">
-                    {new Date(lead.lastActivity).toLocaleDateString("es-AR")}
-                  </dd>
+                  <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Seguimiento</dt>
+                  <dd className="mt-1"><LeadFollowUpStatus updatedAt={lead.followUpUpdatedAt} compact /></dd>
                 </div>
               </dl>
 
@@ -121,7 +120,7 @@ export default function LeadTable({ leads }: { leads: Lead[] }) {
               <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Propiedad / Precio</th>
               <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Estado</th>
               <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Origen</th>
-              <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Última Actividad</th>
+              <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Seguimiento</th>
               <th className="px-4 py-4 text-right text-[11px] font-bold uppercase tracking-widest text-slate-400">Acciones</th>
             </tr>
           </thead>
@@ -174,11 +173,9 @@ export default function LeadTable({ leads }: { leads: Lead[] }) {
                     </span>
                   </td>
 
-                  {/* Columna: Fecha */}
+                  {/* Columna: Seguimiento */}
                   <td className="px-4 py-4">
-                    <span className="text-xs text-slate-500">
-                      {new Date(lead.lastActivity).toLocaleDateString('es-AR')}
-                    </span>
+                    <LeadFollowUpStatus updatedAt={lead.followUpUpdatedAt} compact />
                   </td>
 
                   {/* Columna: Acciones */}

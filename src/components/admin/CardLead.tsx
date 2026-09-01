@@ -3,15 +3,10 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Phone, Mail } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useAuth } from "@/lib/auth-context";
 import { MOCK_USERS } from "@/data/auth-sample";
-import { leads as sampleLeads } from "@/data/admin-sample";
-import { updateLeadAgent } from "@/lib/admin-storage";
-import { toast } from "sonner";
+import { LeadFollowUpStatus } from "@/components/admin/LeadFollowUpStatus";
 
 type PropertyLite = {
   title?: string;
@@ -28,7 +23,8 @@ type Props = {
   email?: string;
   origin?: string;
   properties?: PropertyLite[]; // Corregido: Array de propiedades
-  lastActivity?: string;
+  agentId?: string;
+  followUpUpdatedAt?: string;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent, id: string) => void;
   className?: string;
@@ -52,13 +48,12 @@ function formatPrice(value?: number, currency?: string) {
         currency: currency || "USD",
         maximumFractionDigits: 0 // Las inmobiliarias no suelen usar centavos
     }).format(value);
-  } catch (e) {
+  } catch {
     return `${currency} ${value}`;
   }
 }
 
-export default function CardLead({ id, name, phone, email, origin, properties = [], lastActivity, draggable, onDragStart, className }: Props): React.JSX.Element {
-  const { currentUser } = useAuth();
+export default function CardLead({ id, name, phone, email, origin, properties = [], agentId, followUpUpdatedAt, draggable, onDragStart, className }: Props): React.JSX.Element {
   const [showPhone, setShowPhone] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
 
@@ -67,7 +62,7 @@ export default function CardLead({ id, name, phone, email, origin, properties = 
   const extraCount = properties.length - 1;
   const op = mainProperty?.operation;
   
-  const lead = sampleLeads.find(l => l.id === id);
+  const assignedAgent = agentId ? MOCK_USERS.find((user) => user.id === agentId) : undefined;
 
   return (
     <>
@@ -97,15 +92,15 @@ export default function CardLead({ id, name, phone, email, origin, properties = 
               <div className="font-bold text-slate-900 leading-tight truncate">{name}</div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">Vía {origin || 'Web'}</span>
-                {lead?.agentId && (
+                {assignedAgent && (
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-full" title="Asesor Asignado">
                     <Avatar className="h-4 w-4">
                       <AvatarFallback className="bg-blue-600 text-[8px] font-bold text-white">
-                        {MOCK_USERS.find(u => u.id === lead.agentId)?.avatar || "?"}
+                        {assignedAgent.avatar || "?"}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-[9px] font-bold text-slate-600 pr-1">
-                      {MOCK_USERS.find(u => u.id === lead.agentId)?.name.split(" ")[0]}
+                      {assignedAgent.name.split(" ")[0]}
                     </span>
                   </div>
                 )}
@@ -129,6 +124,8 @@ export default function CardLead({ id, name, phone, email, origin, properties = 
                 <span className="text-slate-400 italic font-normal">Sin propiedad</span>
               )}
             </div>
+
+            <LeadFollowUpStatus updatedAt={followUpUpdatedAt} compact className="mt-3" />
 
             {/* Precio y Acciones */}
             <div className="mt-4 flex flex-col gap-3 w-full pt-3 border-t border-slate-50">

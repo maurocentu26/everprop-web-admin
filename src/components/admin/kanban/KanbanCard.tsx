@@ -37,7 +37,8 @@ export function KanbanCard({ lead, isActive }: { lead: Lead; isActive: boolean }
             currency: p.currency,
             operation: p.operation
           }))}
-          lastActivity={lead.lastActivity}
+          agentId={lead.agentId}
+          followUpUpdatedAt={lead.followUpUpdatedAt}
         />
       </div>
     </div>

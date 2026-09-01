@@ -21,15 +21,7 @@ import {
   MouseSensor,
   useSensor,
   useSensors,
-  useDroppable,
 } from "@dnd-kit/core";
-import { 
-  SortableContext, 
-  useSortable, 
-  verticalListSortingStrategy 
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { cn } from "@/lib/utils";
 import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 // --- Componente Principal ---
@@ -246,8 +238,9 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
                     currency: prop.currency, 
                     operation: prop.operation 
                   } : undefined;
-                }).filter(Boolean) as any}
-                lastActivity={activeLead.lastActivity}
+                }).filter((property): property is NonNullable<typeof property> => property !== undefined)}
+                agentId={activeLead.agentId}
+                followUpUpdatedAt={activeLead.followUpUpdatedAt}
               />
             </div>
           </div>

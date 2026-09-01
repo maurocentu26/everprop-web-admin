@@ -93,6 +93,7 @@ export type Lead = {
   unitIds?: string[];
   stage: 'new' | 'contacted' | 'visiting' | 'negotiation' | 'closing';
   lastActivity: string;
+  followUpUpdatedAt?: string;
   phone?: string;
   email?: string;
   interestCategory?: LeadInterestCategory;
@@ -315,6 +316,9 @@ export const leads: Lead[] = leadNames.map((name, index) => {
     projectId,
     stage,
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * (index + 1)).toISOString(),
+    followUpUpdatedAt: index % 3 === 0
+      ? undefined
+      : new Date(Date.now() - 1000 * 60 * 60 * 24 * (index % 3 === 1 ? 4 : 12)).toISOString(),
     phone: `+54 9 388 4${Math.floor(100000 + Math.random() * 900000)}`,
     email: `${name.split(' ')[0].toLowerCase()}@example.com`,
     visits,

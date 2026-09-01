@@ -3,13 +3,10 @@
 import { useMemo, useState, useEffect } from "react";
 import { 
     CalendarDays, 
-    Clock, 
-    User, 
     Trash2, 
     Plus, 
     Phone, 
     Mail, 
-    ChevronRight,
     StickyNote
 } from "lucide-react";
 import type { Visit, Lead, Property } from "@/data/admin-sample";
@@ -23,11 +20,9 @@ import {
     DialogDescription 
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Badge from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { deferEffectUpdate } from "@/lib/deferred-effect";
 
 type Props = {
@@ -40,6 +35,7 @@ type Props = {
   leadOptions?: Lead[];
   defaultPhone?: string;
   defaultEmail?: string;
+  defaultAgentId?: string;
   propertyOptions?: Property[]
 };
 
@@ -66,6 +62,7 @@ export default function VisitManager({
   leadOptions,
   defaultPhone,
   defaultEmail,
+  defaultAgentId,
   propertyOptions
 }: Props) {
   const [guestName, setGuestName] = useState(defaultGuestName ?? "");
@@ -106,6 +103,7 @@ export default function VisitManager({
       scheduledAt: new Date(scheduledAt).toISOString(),
       notes: notes.trim() || undefined,
       status: "scheduled",
+      agentId: defaultAgentId ?? leadOptions?.find((lead) => lead.id === selectedLeadId)?.agentId,
       propertyId: selectedPropertyId || undefined,
       propertyTitle: propertyOptions?.find(p => p.id === selectedPropertyId)?.title
     };

@@ -90,7 +90,7 @@ export function appendProjectToStorage(nextProject: Project, seed: Project[], co
   return next;
 }
 
-export function updateLeadAgent(leadId: string, agentId: string, seed: Lead[], companyId: string = "c1") {
+export function updateLeadAgent(leadId: string, agentId: string | undefined, seed: Lead[], companyId: string = "c1") {
   const stored = readList<Lead>(ADMIN_STORAGE_KEYS.leads);
   const source = stored.length > 0 ? stored : seed;
   const current = source.filter((lead) => lead.companyId === companyId);
