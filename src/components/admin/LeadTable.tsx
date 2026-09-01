@@ -1,14 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
 import { 
-  MoreHorizontal, 
   MessageCircle, 
-  Phone, 
-  Mail, 
   Eye,
-  ArrowUpDown,
-  Filter
 } from "lucide-react";
 import { properties as sampleProperties, type Lead } from "@/data/admin-sample";
 import  Badge  from "@/components/ui/badge";
@@ -48,6 +42,7 @@ export default function LeadTable({ leads }: { leads: Lead[] }) {
             {leads.map((lead) => {
               const props = sampleProperties.find(p => p.id === lead.propertyIds[0]);
               const stage = STAGE_LABELS[lead.stage] || { label: lead.stage, class: "" };
+              const whatsappNumber = lead.phone?.replace(/\D/g, "");
 
               return (
                 <tr key={lead.id} className="group hover:bg-slate-50/50 transition-colors">
@@ -102,25 +97,28 @@ export default function LeadTable({ leads }: { leads: Lead[] }) {
 
                   {/* Columna: Acciones */}
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-1 opacity-100 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
+                      {whatsappNumber && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-11 w-11 text-emerald-600 hover:bg-emerald-50"
+                          onClick={() => window.open(`https://wa.me/${whatsappNumber}`, "_blank", "noopener,noreferrer")}
+                          aria-label={`Contactar a ${lead.name} por WhatsApp`}
+                          title="Contactar por WhatsApp"
+                        >
+                          <MessageCircle className="h-5 w-5" aria-hidden="true" />
+                        </Button>
+                      )}
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
-                        onClick={() => window.open(`https://wa.me/${lead.phone}`, '_blank')}
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                        className="h-11 w-11 text-blue-600 hover:bg-blue-50"
                         onClick={() => router.push(`/admin/leads/${lead.id}`)}
+                        aria-label={`Abrir ficha de ${lead.name}`}
+                        title="Abrir ficha del lead"
                       >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                        <MoreHorizontal className="h-4 w-4" />
+                        <Eye className="h-5 w-5" aria-hidden="true" />
                       </Button>
                     </div>
                   </td>
