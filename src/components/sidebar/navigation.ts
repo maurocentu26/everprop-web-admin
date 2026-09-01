@@ -31,6 +31,11 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+type NavigationAccess = {
+  isEngineer: boolean;
+  isMockMode: boolean;
+};
+
 export const navigationGroups: NavGroup[] = [
   {
     label: "Desarrollos",
@@ -70,3 +75,32 @@ export const navigationGroups: NavGroup[] = [
 ];
 
 export const navigationConfig: NavItem[] = navigationGroups.flatMap(g => g.items);
+
+export function getAvailableNavigationGroups({
+  isEngineer,
+  isMockMode,
+}: NavigationAccess): NavGroup[] {
+  if (!isMockMode) {
+    const allowed = new Set(["/admin#dashboard", "/admin/desarrollos", "/admin/properties"]);
+    return navigationGroups
+      .map((group) => ({
+        ...group,
+        items: group.items
+          .filter((item) => allowed.has(item.href))
+          .map((item) => ({ ...item, children: undefined })),
+      }))
+      .filter((group) => group.items.length > 0);
+  }
+
+  if (!isEngineer) return navigationGroups;
+
+  return navigationGroups
+    .map((group) => {
+      if (group.label !== "Activos Comerciales") return group;
+      return {
+        ...group,
+        items: group.items.filter((item) => item.title !== "Agenda"),
+      };
+    })
+    .filter((group) => group.label !== "Comercializadora");
+}
