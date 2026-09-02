@@ -4,7 +4,7 @@ import {
   MessageCircle, 
   Eye,
 } from "lucide-react";
-import { properties as sampleProperties, type Lead } from "@/data/admin-sample";
+import { properties as sampleProperties, type Lead, type LeadFollowUp } from "@/data/admin-sample";
 import  Badge  from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -56,7 +56,7 @@ function LeadActions({ lead, onView }: LeadActionsProps) {
   );
 }
 
-export default function LeadTable({ leads }: { leads: Lead[] }) {
+export default function LeadTable({ leads, followUps }: { leads: Lead[]; followUps: LeadFollowUp[] }) {
   const router = useRouter();
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase();
@@ -99,7 +99,7 @@ export default function LeadTable({ leads }: { leads: Lead[] }) {
                 </div>
                 <div>
                   <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Seguimiento</dt>
-                  <dd className="mt-1"><LeadFollowUpStatus updatedAt={lead.followUpUpdatedAt} compact /></dd>
+                  <dd className="mt-1"><LeadFollowUpStatus leadId={lead.id} companyId={lead.companyId} followUps={followUps} legacyUpdatedAt={lead.followUpUpdatedAt} compact /></dd>
                 </div>
               </dl>
 
@@ -175,7 +175,7 @@ export default function LeadTable({ leads }: { leads: Lead[] }) {
 
                   {/* Columna: Seguimiento */}
                   <td className="px-4 py-4">
-                    <LeadFollowUpStatus updatedAt={lead.followUpUpdatedAt} compact />
+                    <LeadFollowUpStatus leadId={lead.id} companyId={lead.companyId} followUps={followUps} legacyUpdatedAt={lead.followUpUpdatedAt} compact />
                   </td>
 
                   {/* Columna: Acciones */}

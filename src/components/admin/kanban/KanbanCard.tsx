@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { type Lead, properties as sampleProperties } from "@/data/admin-sample";
+import { type Lead, type LeadFollowUp, properties as sampleProperties } from "@/data/admin-sample";
 import CardLead from "@/components/admin/CardLead";
 import { cn } from "@/lib/utils";
 
-export function KanbanCard({ lead, isActive }: { lead: Lead; isActive: boolean }) {
+export function KanbanCard({ lead, followUps, isActive }: { lead: Lead; followUps: LeadFollowUp[]; isActive: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
 
   const style = {
@@ -39,6 +39,8 @@ export function KanbanCard({ lead, isActive }: { lead: Lead; isActive: boolean }
           }))}
           agentId={lead.agentId}
           followUpUpdatedAt={lead.followUpUpdatedAt}
+          followUps={followUps}
+          companyId={lead.companyId}
         />
       </div>
     </div>

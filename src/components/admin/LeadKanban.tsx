@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { leads as sampleLeads, properties as sampleProperties, projects as sampleProjects, type Lead } from "@/data/admin-sample";
+import { leads as sampleLeads, properties as sampleProperties, projects as sampleProjects, type Lead, type LeadFollowUp } from "@/data/admin-sample";
 import CardLead from "@/components/admin/CardLead";
-import { loadLeadList, saveLeadList, loadProjectList } from "@/lib/admin-storage";
+import { loadLeadFollowUpList, loadLeadList, saveLeadList, loadProjectList } from "@/lib/admin-storage";
+import { getLeadFollowUpState } from "@/lib/lead-follow-up";
 import { useCurrentSession } from "@/hooks/use-current-session";
 import { useDashboardMode } from "@/lib/dashboard-context";
 import { KanbanColumn } from "./kanban/KanbanColumn";
@@ -27,6 +28,7 @@ import { deferEffectUpdate } from "@/lib/deferred-effect";
 // --- Componente Principal ---
 export default function LeadKanban({ companyId = "c1", dashboardMode = "enterprise" }: { companyId?: string, dashboardMode?: "agency" | "enterprise" }) {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [followUps, setFollowUps] = useState<LeadFollowUp[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [activeDragId, setActiveDragId] = useState<UniqueIdentifier | null>(null);
   const [overStageId, setOverStageId] = useState<Stage | null>(null);
@@ -53,14 +55,15 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
   useEffect(() => {
     return deferEffectUpdate(() => {
       setLeads(loadLeadList(sampleLeads, companyId));
+      setFollowUps(loadLeadFollowUpList([], companyId));
       setHydrated(true);
     });
   }, [companyId]);
 
   useEffect(() => {
     if (!hydrated) return;
-    saveLeadList(leads);
-  }, [hydrated, leads]);
+    saveLeadList(leads, companyId);
+  }, [companyId, hydrated, leads]);
 
   // Auxiliar para encontrar el stage de cualquier ID (Lead o Columna)
   const findStage = (id: UniqueIdentifier): Stage | null => {
@@ -194,7 +197,16 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {STAGE_ORDER.map((stage) => {
-          const stageLeads = filteredLeads.filter((l) => l.stage === stage);
+          const priority = { overdue: 0, dueSoon: 1, none: 2, current: 3 } as const;
+          const stageLeads = filteredLeads
+            .filter((lead) => lead.stage === stage)
+            .sort((a, b) => {
+              if (!isAdvisor) return 0;
+              const now = new Date();
+              const stateA = getLeadFollowUpState(followUps, a.id, a.followUpUpdatedAt, now, a.companyId);
+              const stateB = getLeadFollowUpState(followUps, b.id, b.followUpUpdatedAt, now, b.companyId);
+              return priority[stateA.kind] - priority[stateB.kind];
+            });
           return (
             <KanbanColumn 
               key={stage} 
@@ -206,6 +218,7 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
                 <KanbanCard 
                   key={lead.id} 
                   lead={lead} 
+                  followUps={followUps}
                   isActive={activeDragId === lead.id} 
                 />
               ))}
@@ -241,6 +254,8 @@ export default function LeadKanban({ companyId = "c1", dashboardMode = "enterpri
                 }).filter((property): property is NonNullable<typeof property> => property !== undefined)}
                 agentId={activeLead.agentId}
                 followUpUpdatedAt={activeLead.followUpUpdatedAt}
+                followUps={followUps}
+                companyId={activeLead.companyId}
               />
             </div>
           </div>

@@ -6,6 +6,7 @@ import { Phone, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MOCK_USERS } from "@/data/auth-sample";
+import type { LeadFollowUp } from "@/data/admin-sample";
 import { LeadFollowUpStatus } from "@/components/admin/LeadFollowUpStatus";
 
 type PropertyLite = {
@@ -25,6 +26,8 @@ type Props = {
   properties?: PropertyLite[]; // Corregido: Array de propiedades
   agentId?: string;
   followUpUpdatedAt?: string;
+  followUps?: LeadFollowUp[];
+  companyId?: string;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent, id: string) => void;
   className?: string;
@@ -53,7 +56,7 @@ function formatPrice(value?: number, currency?: string) {
   }
 }
 
-export default function CardLead({ id, name, phone, email, origin, properties = [], agentId, followUpUpdatedAt, draggable, onDragStart, className }: Props): React.JSX.Element {
+export default function CardLead({ id, name, phone, email, origin, properties = [], agentId, followUpUpdatedAt, followUps = [], companyId, draggable, onDragStart, className }: Props): React.JSX.Element {
   const [showPhone, setShowPhone] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
 
@@ -125,7 +128,7 @@ export default function CardLead({ id, name, phone, email, origin, properties = 
               )}
             </div>
 
-            <LeadFollowUpStatus updatedAt={followUpUpdatedAt} compact className="mt-3" />
+            <LeadFollowUpStatus leadId={id} companyId={companyId} followUps={followUps} legacyUpdatedAt={followUpUpdatedAt} compact className="mt-3" />
 
             {/* Precio y Acciones */}
             <div className="mt-4 flex flex-col gap-3 w-full pt-3 border-t border-slate-50">

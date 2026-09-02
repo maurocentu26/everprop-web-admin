@@ -24,6 +24,23 @@ export type LeadInterest = {
   updatedAt: string;
 };
 
+export type LeadFollowUpType = 'call' | 'whatsapp' | 'email' | 'meeting' | 'visit' | 'note';
+
+// Registro independiente del lead. Se mantiene en el almacenamiento local del
+// panel hasta que el backend confirme su contrato definitivo.
+export type LeadFollowUp = {
+  id: string;
+  companyId: string;
+  leadId: string;
+  agentId: string;
+  type: LeadFollowUpType;
+  occurredAt: string;
+  summary: string;
+  result: string;
+  nextAction?: string;
+  nextContactAt?: string;
+};
+
 export type Project = {
   id: string;
   companyId: string;
@@ -93,6 +110,7 @@ export type Lead = {
   unitIds?: string[];
   stage: 'new' | 'contacted' | 'visiting' | 'negotiation' | 'closing';
   lastActivity: string;
+  // Compatibilidad con registros creados antes del historial independiente.
   followUpUpdatedAt?: string;
   phone?: string;
   email?: string;
@@ -316,9 +334,11 @@ export const leads: Lead[] = leadNames.map((name, index) => {
     projectId,
     stage,
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * (index + 1)).toISOString(),
-    followUpUpdatedAt: index % 3 === 0
+    followUpUpdatedAt: index % 4 === 0
       ? undefined
-      : new Date(Date.now() - 1000 * 60 * 60 * 24 * (index % 3 === 1 ? 4 : 12)).toISOString(),
+      : new Date(Date.now() - 1000 * 60 * 60 * 24 * (
+        index % 4 === 1 ? 4 : index % 4 === 2 ? 9 : 12
+      )).toISOString(),
     phone: `+54 9 388 4${Math.floor(100000 + Math.random() * 900000)}`,
     email: `${name.split(' ')[0].toLowerCase()}@example.com`,
     visits,

@@ -5,8 +5,9 @@ import LeadTable from "@/components/admin/LeadTable";
 import { Button } from "@/components/ui/button";
 import { Download, Plus, Filter, Search } from "lucide-react";
 import Link from "next/link";
-import { type Lead, leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
-import { loadLeadList } from "@/lib/admin-storage";
+import { type Lead, type LeadFollowUp, leads as sampleLeads, properties as sampleProperties } from "@/data/admin-sample";
+import { loadLeadFollowUpList, loadLeadList } from "@/lib/admin-storage";
+import { getLeadFollowUpState } from "@/lib/lead-follow-up";
 import { deferEffectUpdate } from "@/lib/deferred-effect";
 import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ import { useCurrentSession } from "@/hooks/use-current-session";
 
 type LeadStageFilter = "all" | "new" | "process" | "closed";
 type AssetTypeFilter = "all" | "lote" | "departamento" | "comercial" | "tradicional";
+type FollowUpFilter = "all" | "dueSoon" | "overdue";
 
 const LEAD_STAGE_FILTERS: { id: LeadStageFilter; label: string }[] = [
   { id: "all", label: "Todos" },
@@ -25,19 +27,28 @@ const LEAD_STAGE_FILTERS: { id: LeadStageFilter; label: string }[] = [
   { id: "closed", label: "Cerrados" },
 ];
 
+const FOLLOW_UP_FILTERS: { id: FollowUpFilter; label: string }[] = [
+  { id: "all", label: "Todos" },
+  { id: "dueSoon", label: "Próximos a vencer" },
+  { id: "overdue", label: "Vencidos" },
+];
+
 export default function AllLeadsPage() {
   const { mode: dashboardMode } = useDashboardMode();
   const { isEngineer, isAdvisor, user } = useCurrentSession();
   
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
+  const [followUps, setFollowUps] = useState<LeadFollowUp[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeStage, setActiveStage] = useState<LeadStageFilter>("all");
   const [assetType, setAssetType] = useState<AssetTypeFilter>("all");
+  const [followUpFilter, setFollowUpFilter] = useState<FollowUpFilter>("all");
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     return deferEffectUpdate(() => {
       setAllLeads(loadLeadList(sampleLeads, "c1"));
+      setFollowUps(loadLeadFollowUpList([], "c1"));
       setIsLoaded(true);
     });
   }, []);
@@ -48,17 +59,19 @@ export default function AllLeadsPage() {
       if (dashboardMode === "agency") {
         setAssetType("all");
         setActiveStage("all");
+        setFollowUpFilter("all");
         setSearchQuery("");
       }
     });
   }, [dashboardMode]);
 
-  const hasActiveFilters = searchQuery !== "" || activeStage !== "all" || assetType !== "all";
+  const hasActiveFilters = searchQuery !== "" || activeStage !== "all" || assetType !== "all" || followUpFilter !== "all";
 
   const handleClearFilters = () => {
     setSearchQuery("");
     setActiveStage("all");
     setAssetType("all");
+    setFollowUpFilter("all");
   };
 
   const filteredLeads = useMemo(() => {
@@ -100,13 +113,34 @@ export default function AllLeadsPage() {
       });
     }
 
-    // 4. Auth Filter
+    // 4. Follow-up deadline filter. The state is always derived from persisted data.
+    if (followUpFilter !== "all") {
+      const now = new Date();
+      filtered = filtered.filter((lead) => (
+        getLeadFollowUpState(
+          followUps,
+          lead.id,
+          lead.followUpUpdatedAt,
+          now,
+          lead.companyId,
+        ).kind === followUpFilter
+      ));
+    }
+
+    // 5. Auth Filter
     if (isAdvisor) {
       filtered = filtered.filter(l => l.agentId === user?.id);
+      const now = new Date();
+      const priority = { overdue: 0, dueSoon: 1, none: 2, current: 3 } as const;
+      filtered = [...filtered].sort((a, b) => {
+        const stateA = getLeadFollowUpState(followUps, a.id, a.followUpUpdatedAt, now, a.companyId);
+        const stateB = getLeadFollowUpState(followUps, b.id, b.followUpUpdatedAt, now, b.companyId);
+        return priority[stateA.kind] - priority[stateB.kind];
+      });
     }
 
     return filtered;
-  }, [allLeads, searchQuery, activeStage, assetType, isAdvisor, user]);
+  }, [allLeads, searchQuery, activeStage, assetType, followUpFilter, followUps, isAdvisor, user]);
 
   if (isEngineer) {
     return (
@@ -204,10 +238,40 @@ export default function AllLeadsPage() {
         </div>
       </div>
 
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="follow-up-filter-title">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 id="follow-up-filter-title" className="text-base font-bold text-slate-900">Plazo de seguimiento</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">Priorizá los contactos que vencen dentro de dos días o ya superaron el límite de 10 días.</p>
+          </div>
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
+            {FOLLOW_UP_FILTERS.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setFollowUpFilter(filter.id)}
+                className={cn(
+                  "min-h-12 rounded-xl border px-5 py-2 text-base font-semibold transition-colors",
+                  followUpFilter === filter.id
+                    ? filter.id === "overdue"
+                      ? "border-rose-600 bg-rose-600 text-white"
+                      : filter.id === "dueSoon"
+                        ? "border-amber-500 bg-amber-500 text-slate-950"
+                        : "border-blue-600 bg-blue-600 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50",
+                )}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Table */}
       <div className="min-h-[500px]">
         {filteredLeads.length > 0 ? (
-          <LeadTable leads={filteredLeads} />
+          <LeadTable leads={filteredLeads} followUps={followUps} />
         ) : (
           <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50">
             <Filter className="h-8 w-8 text-slate-300 mb-3" />

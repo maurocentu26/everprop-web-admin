@@ -1,9 +1,10 @@
-import type { Lead, Property, Project } from "@/data/admin-sample";
+import type { Lead, LeadFollowUp, Property, Project } from "@/data/admin-sample";
 
 export const ADMIN_STORAGE_KEYS = {
   leads: "everprop:leads:v2",
   properties: "everprop:properties:v2",
   projects: "everprop:projects:v2",
+  leadFollowUps: "everprop:lead-follow-ups:v1",
 } as const;
 
 function readList<T>(key: string): T[] {
@@ -73,6 +74,12 @@ export function appendPropertyToStorage(nextProperty: Property, seed: Property[]
   return next;
 }
 
+export function loadLeadFollowUpList(seed: LeadFollowUp[], companyId: string) {
+  const stored = readList<LeadFollowUp>(ADMIN_STORAGE_KEYS.leadFollowUps);
+  const source = stored.length > 0 ? stored : seed;
+  return source.filter((followUp) => followUp.companyId === companyId);
+}
+
 export function appendProjectToStorage(nextProject: Project, seed: Project[], companyId: string) {
   if (nextProject.companyId !== companyId) {
     throw new Error("El proyecto no pertenece a la empresa activa.");
@@ -87,6 +94,31 @@ export function appendProjectToStorage(nextProject: Project, seed: Project[], co
     ADMIN_STORAGE_KEYS.projects,
     JSON.stringify([...otherCompanyProjects, ...next]),
   );
+  return next;
+}
+
+export function appendLeadFollowUpToStorage(
+  nextFollowUp: LeadFollowUp,
+  seed: LeadFollowUp[],
+  companyId: string,
+) {
+  if (nextFollowUp.companyId !== companyId) {
+    throw new Error("El seguimiento no pertenece a la empresa activa.");
+  }
+
+  const stored = readList<LeadFollowUp>(ADMIN_STORAGE_KEYS.leadFollowUps);
+  const source = stored.length > 0 ? stored : seed;
+  const companyFollowUps = source.filter((followUp) => followUp.companyId === companyId);
+  const otherCompanyFollowUps = source.filter((followUp) => followUp.companyId !== companyId);
+  const next = [nextFollowUp, ...companyFollowUps];
+
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(
+      ADMIN_STORAGE_KEYS.leadFollowUps,
+      JSON.stringify([...otherCompanyFollowUps, ...next]),
+    );
+  }
+
   return next;
 }
 

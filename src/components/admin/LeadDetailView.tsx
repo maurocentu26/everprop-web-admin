@@ -10,6 +10,7 @@ import {
   projects as sampleProjects,
   properties as sampleProperties,
   type Lead,
+  type LeadFollowUp,
   type LeadInterest,
   type LeadInterestCategory,
   type Project,
@@ -17,7 +18,16 @@ import {
   type Visit,
 } from "@/data/admin-sample";
 import { MOCK_USERS } from "@/data/auth-sample";
-import { loadLeadList, loadProjectList, loadPropertyList, saveLeadList, savePropertyList, updateLeadAgent } from "@/lib/admin-storage";
+import {
+  appendLeadFollowUpToStorage,
+  loadLeadFollowUpList,
+  loadLeadList,
+  loadProjectList,
+  loadPropertyList,
+  saveLeadList,
+  savePropertyList,
+  updateLeadAgent,
+} from "@/lib/admin-storage";
 import {
   createInterestForProperty,
   getInterestAssetIds,
@@ -27,6 +37,7 @@ import {
 } from "@/lib/lead-interests";
 import { useAuth } from "@/lib/auth-context";
 import { createNotification } from "@/lib/notifications";
+import { isCommercialContact } from "@/lib/lead-follow-up";
 import { deferEffectUpdate } from "@/lib/deferred-effect";
 import { Button } from "@/components/ui/button";
 import Badge from "@/components/ui/badge";
@@ -39,6 +50,7 @@ import { LeadProfileEditor } from "@/components/admin/LeadProfileEditor";
 import { LeadAdvisorEditor } from "@/components/admin/LeadAdvisorEditor";
 import { LeadFollowUpEditor } from "@/components/admin/LeadFollowUpEditor";
 import { LeadFollowUpStatus } from "@/components/admin/LeadFollowUpStatus";
+import { LeadFollowUpTimeline } from "@/components/admin/LeadFollowUpTimeline";
 
 const CATEGORY_LABELS: Record<LeadInterestCategory, string> = {
   loteo: "Loteos",
@@ -55,6 +67,7 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [followUps, setFollowUps] = useState<LeadFollowUp[]>([]);
   const [advisorEditorOpen, setAdvisorEditorOpen] = useState(false);
   const [followUpEditorOpen, setFollowUpEditorOpen] = useState(false);
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
@@ -69,6 +82,7 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
       setAllLeads(initialLeads);
       setAllProperties(loadPropertyList(sampleProperties, companyId));
       setAllProjects(loadProjectList(sampleProjects, companyId));
+      setFollowUps(loadLeadFollowUpList([], companyId));
       setLead(foundLead);
     });
   }, [leadId]);
@@ -162,11 +176,32 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
     toast.success(agentId ? "Asesor responsable actualizado" : "Lead dejado sin asignar");
   }
 
-  function handleUpdateFollowUp() {
-    if (!lead) return;
-    updateLeadData({ ...lead, followUpUpdatedAt: new Date().toISOString() });
+  function handleSaveFollowUp(followUp: LeadFollowUp) {
+    if (!lead || followUp.companyId !== lead.companyId || followUp.leadId !== lead.id) {
+      toast.error("El seguimiento no pertenece al lead y la empresa activos.");
+      return;
+    }
+
+    const nextFollowUps = appendLeadFollowUpToStorage(
+      followUp,
+      followUps,
+      lead.companyId,
+    );
+    setFollowUps(nextFollowUps);
+
+    if (isCommercialContact(followUp)) {
+      const previousTimestamp = lead.followUpUpdatedAt
+        ? new Date(lead.followUpUpdatedAt).getTime()
+        : Number.NEGATIVE_INFINITY;
+      if (new Date(followUp.occurredAt).getTime() > previousTimestamp) {
+        updateLeadData({ ...lead, followUpUpdatedAt: followUp.occurredAt });
+      }
+    }
+
     setFollowUpEditorOpen(false);
-    toast.success("Seguimiento actualizado");
+    toast.success(
+      followUp.type === "note" ? "Nota agregada al historial" : "Seguimiento comercial registrado",
+    );
   }
 
   if (!lead) return null;
@@ -232,10 +267,10 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
           <section className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5" aria-labelledby="lead-follow-up-title">
             <div>
               <p id="lead-follow-up-title" className="text-sm font-semibold text-slate-500">Seguimiento comercial</p>
-              <LeadFollowUpStatus updatedAt={lead.followUpUpdatedAt} className="mt-3" />
+              <LeadFollowUpStatus leadId={lead.id} companyId={lead.companyId} followUps={followUps} legacyUpdatedAt={lead.followUpUpdatedAt} className="mt-3" />
             </div>
             <Button onClick={() => setFollowUpEditorOpen(true)} className="h-12 w-full bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-700 sm:w-auto sm:self-start">
-              Actualizar seguimiento
+              Registrar seguimiento
             </Button>
           </section>
         </div>
@@ -253,6 +288,22 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
         )}
 
         {lead.notes && <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5"><p className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500"><StickyNote className="size-4" aria-hidden="true" /> Notas generales</p><p className="mt-2 whitespace-pre-wrap text-base leading-7 text-slate-700">{lead.notes}</p></div>}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 lg:p-8" aria-labelledby="lead-follow-up-timeline-title">
+        <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.12em] text-blue-700">Historial comercial</p>
+            <h2 id="lead-follow-up-timeline-title" className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Línea de tiempo</h2>
+            <p className="mt-2 max-w-3xl text-base leading-7 text-slate-600">Cada contacto conserva su asesor, fecha, tipo, resumen, resultado y próximo paso.</p>
+          </div>
+          <Button onClick={() => setFollowUpEditorOpen(true)} className="h-14 w-full gap-2 bg-blue-600 px-6 text-lg font-bold text-white hover:bg-blue-700 sm:w-auto">
+            <Plus className="size-5" aria-hidden="true" /> Nuevo seguimiento
+          </Button>
+        </div>
+        <div className="mt-6">
+          <LeadFollowUpTimeline leadId={lead.id} companyId={lead.companyId} followUps={followUps} legacyUpdatedAt={lead.followUpUpdatedAt} />
+        </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 lg:p-8" aria-labelledby="lead-interests-title">
@@ -296,7 +347,7 @@ export default function LeadDetailView({ leadId }: { leadId: string }) {
 
       {profileEditorOpen && <LeadProfileEditor key={lead.lastActivity} lead={lead} onClose={() => setProfileEditorOpen(false)} onSave={handleSaveProfile} />}
       {interestEditor && <LeadInterestEditor key={interestEditor.mode === "edit" ? interestEditor.interest.id : "new-interest"} companyId={lead.companyId} interest={interestEditor.mode === "edit" ? interestEditor.interest : undefined} projects={allProjects} properties={allProperties} onClose={() => setInterestEditor(null)} onSave={handleSaveInterest} />}
-      {followUpEditorOpen && <LeadFollowUpEditor leadName={lead.name} updatedAt={lead.followUpUpdatedAt} onClose={() => setFollowUpEditorOpen(false)} onConfirm={handleUpdateFollowUp} />}
+      {followUpEditorOpen && <LeadFollowUpEditor lead={lead} onClose={() => setFollowUpEditorOpen(false)} onConfirm={handleSaveFollowUp} />}
       {advisorEditorOpen && currentUser?.role === "ADMIN" && <LeadAdvisorEditor leadName={lead.name} currentAgentId={lead.agentId} onClose={() => setAdvisorEditorOpen(false)} onSave={handleReassignAgentConfirmed} />}
 
       <Dialog open={Boolean(interestToDelete)} onOpenChange={(open) => !open && setInterestToDelete(null)}>

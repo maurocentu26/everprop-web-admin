@@ -17,6 +17,7 @@ import { useCurrentSession } from "@/hooks/use-current-session";
 import { motion, AnimatePresence } from "framer-motion";
 import ApiIntegrationStatus from "@/components/admin/ApiIntegrationStatus";
 import { isMockDataMode } from "@/lib/data-mode";
+import { AdvisorFollowUpPriority } from "@/components/admin/AdvisorFollowUpPriority";
 
 export default function AdminPage() {
   const { mode: dashboardMode, setMode: setDashboardMode } = useDashboardMode();
@@ -70,6 +71,8 @@ export default function AdminPage() {
       transition={{ duration: 0.5 }}
       className="space-y-10"
     >
+      {!isEngineer && <AdvisorFollowUpPriority />}
+
       {/* ── QUICK STATS BANNER ── */}
       {!isEngineer && (
         <section id="stats-banner">
