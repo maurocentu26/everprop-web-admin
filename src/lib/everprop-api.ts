@@ -172,7 +172,7 @@ function mapProject(project: ApiProject): Project {
     },
     totalUnits: Number(project.total_units || 0),
     description: project.description || undefined,
-    masterplanImage: project.masterplan_image_url || undefined,
+    coverImage: project.masterplan_image_url || undefined,
   };
 }
 

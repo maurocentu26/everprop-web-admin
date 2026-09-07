@@ -28,12 +28,12 @@ function ProjectCard({ project, properties, readOnly }: { project: Project; prop
       )}
     >
       <div className="relative h-48 w-full overflow-hidden bg-slate-100">
-        {project.masterplanImage ? (
+        {project.coverImage ? (
           <div
             role="img"
             aria-label={project.name}
             className="h-full w-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-            style={{ backgroundImage: `url("${project.masterplanImage.replaceAll('"', '\\"')}")` }}
+            style={{ backgroundImage: `url("${project.coverImage.replaceAll('"', '\\"')}")` }}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-slate-200">

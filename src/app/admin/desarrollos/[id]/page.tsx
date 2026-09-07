@@ -151,11 +151,11 @@ export default function ProjectDetailView() {
             </div>
 
             <div className="space-y-6">
-              {project.masterplanImage && (
+              {project.coverImage && (
                 <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-200">
-                  <img src={project.masterplanImage} alt="Masterplan" className="w-full h-48 object-cover" />
+                  <img src={project.coverImage} alt="Imagen del Proyecto" className="w-full h-48 object-cover" />
                   <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Masterplan</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Imagen del Proyecto</span>
                   </div>
                 </div>
               )}

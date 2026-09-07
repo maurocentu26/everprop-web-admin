@@ -38,7 +38,7 @@ type NavigationAccess = {
 
 export const navigationGroups: NavGroup[] = [
   {
-    label: "Desarrollos",
+    label: "Proyectos",
     items: [
       { title: "Dashboard", href: "/admin#dashboard", icon: Home, hash: "#dashboard" },
       { title: "Proyectos", href: "/admin/desarrollos", icon: HardHat, matchPath: "/admin/desarrollos" },
